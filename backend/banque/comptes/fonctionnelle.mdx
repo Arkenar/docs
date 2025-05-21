@@ -1,3 +1,5 @@
+[Voir la documentation technique](./technique.mdx)
+
 # Documentation Fonctionnelle - Module de Comptes Bancaires
 
 Ce document détaille les fonctionnalités relatives à la gestion des comptes bancaires au sein du système ERP Banking.
@@ -6,10 +8,11 @@ Ce document détaille les fonctionnalités relatives à la gestion des comptes b
 
 ### 1.1. Création d'un Compte Bancaire
 
-Permet de créer un nouveau compte bancaire dans le système.
+<Card title="POST /api/v1/accounts" href="/api/v1/accounts" method="POST">
+  Permet de créer un nouveau compte bancaire dans le système.
 
-*   **Endpoint :** `POST /api/v1/accounts`
-*   **Rôles requis :** ADMIN, DATA_PROCESSOR
+  **Rôles requis :** ADMIN, DATA_PROCESSOR
+</Card>
 
 **Exemple de requête :**
 
@@ -52,6 +55,7 @@ Permet de créer un nouveau compte bancaire dans le système.
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `400 Bad Request` : Si les données fournies sont invalides (ex: `bankId` manquant, format de date incorrect) ou si un compte avec le même numéro existe déjà pour cette banque.
     ```json
     {
@@ -61,13 +65,15 @@ Permet de créer un nouveau compte bancaire dans le système.
       // ou "Banque non trouvée avec l'ID: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
     }
     ```
+</Callout>
 
 ### 1.2. Récupération des Informations d'un Compte Bancaire
 
+<Card title="GET /api/v1/accounts/{accountId}" href="/api/v1/accounts/{accountId}" method="GET">
 Permet de récupérer les détails d'un compte bancaire spécifique.
 
-*   **Endpoint :** `GET /api/v1/accounts/{accountId}`
-*   **Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+**Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+</Card>
 
 **Exemple de requête :**
 
@@ -99,17 +105,24 @@ Permet de récupérer les détails d'un compte bancaire spécifique.
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `404 Not Found` : Si aucun compte ne correspond à l'`accountId` fourni.
+</Callout>
 
 ### 1.3. Listage des Comptes Bancaires
 
+<Card title="GET /api/v1/accounts" href="/api/v1/accounts" method="GET">
 Permet de récupérer une liste de tous les comptes bancaires, avec des options de filtrage.
 
-*   **Endpoint :** `GET /api/v1/accounts`
-*   **Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
-*   **Paramètres de requête optionnels :**
-    *   `bankId` (UUID) : Pour filtrer les comptes par ID de banque.
-    *   `organizationId` (UUID) : Pour filtrer les comptes par ID d'organisation (via la banque).
+**Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+</Card>
+
+**Paramètres de requête optionnels :**
+
+| Paramètre      | Type | Description                                               |
+|----------------|------|-----------------------------------------------------------|
+| `bankId`       | UUID | Pour filtrer les comptes par ID de banque.                |
+| `organizationId` | UUID | Pour filtrer les comptes par ID d'organisation (via la banque). |
 
 **Exemple de requête (tous les comptes) :**
 
@@ -136,10 +149,11 @@ Permet de récupérer une liste de tous les comptes bancaires, avec des options 
 
 ### 1.4. Mise à Jour d'un Compte Bancaire
 
+<Card title="PUT /api/v1/accounts/{accountId}" href="/api/v1/accounts/{accountId}" method="PUT">
 Permet de modifier les informations d'un compte bancaire existant.
 
-*   **Endpoint :** `PUT /api/v1/accounts/{accountId}`
-*   **Rôles requis :** ADMIN, DATA_PROCESSOR
+**Rôles requis :** ADMIN, DATA_PROCESSOR
+</Card>
 
 **Exemple de requête :**
 
@@ -184,15 +198,18 @@ Permet de modifier les informations d'un compte bancaire existant.
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `400 Bad Request` : Si les données fournies sont invalides ou si la mise à jour crée un conflit (ex: numéro de compte dupliqué pour la même banque).
 *   `404 Not Found` : Si aucun compte ne correspond à l'`accountId` fourni.
+</Callout>
 
 ### 1.5. Suppression d'un Compte Bancaire
 
+<Card title="DELETE /api/v1/accounts/{accountId}" href="/api/v1/accounts/{accountId}" method="DELETE">
 Permet de supprimer un compte bancaire. (Attention : vérifier les implications, comme la présence de relevés liés).
 
-*   **Endpoint :** `DELETE /api/v1/accounts/{accountId}`
-*   **Rôles requis :** ADMIN
+**Rôles requis :** ADMIN
+</Card>
 
 **Exemple de requête :**
 
@@ -204,25 +221,34 @@ Permet de supprimer un compte bancaire. (Attention : vérifier les implications,
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `404 Not Found` : Si aucun compte ne correspond à l'`accountId` fourni.
+</Callout>
 
 ## 2. Consultation des Soldes
 
+<Callout type="note">
 Le solde actuel (`currentBalance`) et le solde initial (`initialBalance`) sont disponibles lors de la récupération des informations d'un compte bancaire (voir section 1.2). Il n'y a pas d'endpoint dédié uniquement au solde.
+</Callout>
 
 ## 3. Relevés de Compte (Transactions)
 
 ### 3.1. Récupération des Relevés d'un Compte
 
+<Card title="GET /api/v1/accounts/{accountId}/statements" href="/api/v1/accounts/{accountId}/statements" method="GET">
 Permet de lister les relevés (transactions) d'un compte bancaire spécifique, avec pagination.
 
-*   **Endpoint :** `GET /api/v1/accounts/{accountId}/statements`
-*   **Rôles requis :** ADMIN, DATA_PROCESSOR, USER, VIEWER
-*   **Paramètres de requête optionnels :**
-    *   `status` (String) : Pour filtrer les relevés par statut (ex: `PENDING_REVIEW`, `CONFIRMED`).
-    *   `page` (int) : Numéro de la page (défaut: 0).
-    *   `size` (int) : Nombre d'éléments par page (défaut: 20).
-    *   `sort` (String) : Propriété de tri (ex: `operationDate,desc`).
+**Rôles requis :** ADMIN, DATA_PROCESSOR, USER, VIEWER
+</Card>
+
+**Paramètres de requête optionnels :**
+
+| Paramètre | Type   | Description                                                                 | Défaut |
+|-----------|--------|-----------------------------------------------------------------------------|--------|
+| `status`  | String | Pour filtrer les relevés par statut (ex: `PENDING_REVIEW`, `CONFIRMED`).    |        |
+| `page`    | int    | Numéro de la page.                                                          | 0      |
+| `size`    | int    | Nombre d'éléments par page.                                                 | 20     |
+| `sort`    | String | Propriété de tri (ex: `operationDate,desc`).                                |        |
 
 **Exemple de requête (relevés confirmés, page 0, 10 éléments par page) :**
 
@@ -287,10 +313,11 @@ Permet de lister les relevés (transactions) d'un compte bancaire spécifique, a
 
 ### 3.2. Mise à Jour des Détails d'un Relevé Spécifique
 
+<Card title="PUT /api/v1/accounts/{accountId}/statements/{statementId}" href="/api/v1/accounts/{accountId}/statements/{statementId}" method="PUT">
 Permet de modifier les détails d'un relevé avant sa confirmation. Un relevé confirmé ne peut pas être modifié directement par cet endpoint.
 
-*   **Endpoint :** `PUT /api/v1/accounts/{accountId}/statements/{statementId}`
-*   **Rôles requis :** ADMIN, DATA_PROCESSOR
+**Rôles requis :** ADMIN, DATA_PROCESSOR
+</Card>
 
 **Exemple de requête :**
 
@@ -342,6 +369,7 @@ Permet de modifier les détails d'un relevé avant sa confirmation. Un relevé c
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `404 Not Found` : Si le compte ou le relevé n'existe pas.
 *   `409 Conflict` ou `IllegalStateException` (traduit en `409` ou `400` par le `ControllerAdvice`): Si le relevé est déjà confirmé.
     ```json
@@ -351,15 +379,17 @@ Permet de modifier les détails d'un relevé avant sa confirmation. Un relevé c
       "message": "Impossible de modifier les détails d'un relevé déjà confirmé. Changez d'abord son statut."
     }
     ```
+</Callout>
 
 ## 4. Processus de Révision et de Mise à Jour des Relevés
 
 ### 4.1. Mise à Jour en Masse du Statut des Relevés
 
+<Card title="POST /api/v1/accounts/{accountId}/statements/batch-review" href="/api/v1/accounts/{accountId}/statements/batch-review" method="POST">
 Permet de changer le statut de plusieurs relevés en une seule opération (ex: passer de `PENDING_REVIEW` à `CONFIRMED` ou `REJECTED`). La confirmation d'un relevé met à jour le solde du compte associé. L'annulation d'une confirmation (passer de `CONFIRMED` à un autre statut) ajuste également le solde en conséquence.
 
-*   **Endpoint :** `POST /api/v1/accounts/{accountId}/statements/batch-review`
-*   **Rôles requis :** ADMIN, DATA_PROCESSOR
+**Rôles requis :** ADMIN, DATA_PROCESSOR
+</Card>
 
 **Exemple de requête :**
 
@@ -404,6 +434,7 @@ Permet de changer le statut de plusieurs relevés en une seule opération (ex: p
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `400 Bad Request` : Si le `newStatus` est invalide ou si la liste `statementIds` est vide/nulle.
     ```json
     {
@@ -421,9 +452,11 @@ Permet de changer le statut de plusieurs relevés en une seule opération (ex: p
     }
     ```
 *   `IllegalStateException` (traduit en `400` ou `500` par le `ControllerAdvice`): Si l'utilisateur effectuant l'action ne peut être déterminé.
+</Callout>
 
 ## 5. Import de Relevés (Fonctionnalité Connexe)
 
+<Callout type="info">
 Bien que la logique d'import et de parsing des fichiers de relevés soit gérée par un autre module (`statementimport`), le service `AccountStatementStorageService` est utilisé par ce processus pour stocker les transactions parsées en tant qu'entités `AccountStatementEntity`.
 
 Lorsqu'un fichier de relevé est traité :
@@ -432,3 +465,4 @@ Lorsqu'un fichier de relevé est traité :
 3.  La date `lastStatementImportDate` sur l'entité `AccountEntity` associée est mise à jour.
 
 Ces relevés nouvellement importés apparaissent ensuite via l'endpoint `GET /api/v1/accounts/{accountId}/statements` (souvent filtrés par `status=PENDING_REVIEW`) pour la révision.
+</Callout>

@@ -1,21 +1,25 @@
+[Voir la documentation technique](./technique.mdx)
+
 # Documentation Fonctionnelle - Module d'Analytique Financière
 
 Ce document détaille les fonctionnalités du module d'analytique financière, permettant d'obtenir des rapports et des aperçus sur les données bancaires.
 
 ## 1. Historique des Soldes de Compte
 
+<Card title="GET /api/v1/analytics/accounts/{accountId}/balance-history" href="/api/v1/analytics/accounts/{accountId}/balance-history" method="GET">
 Permet de visualiser l'évolution du solde d'un compte bancaire sur une période donnée.
 
-*   **Endpoint :** `GET /api/v1/analytics/accounts/{accountId}/balance-history`
-*   **Rôles requis :** ADMIN, USER, VIEWER, DATA_PROCESSOR
-*   **Paramètres de requête :**
+**Rôles requis :** ADMIN, USER, VIEWER, DATA_PROCESSOR
+</Card>
 
-    | Paramètre     | Type        | Obligatoire | Description                                                                 | Défaut         |
-        |---------------|-------------|-------------|-----------------------------------------------------------------------------|----------------|
-    | `accountId`   | UUID        | Oui         | ID du compte bancaire pour lequel générer l'historique.                     |                |
-    | `fromDate`    | LocalDate   | Oui         | Date de début de la période (format ISO : AAAA-MM-JJ).                      |                |
-    | `toDate`      | LocalDate   | Oui         | Date de fin de la période (format ISO : AAAA-MM-JJ).                        |                |
-    | `granularity` | String      | Non         | Granularité de l'historique : `daily` (quotidienne), `monthly` (mensuelle). | `daily`        |
+**Paramètres de requête :**
+
+| Paramètre     | Type        | Obligatoire | Description                                                                 | Défaut         |
+|---------------|-------------|-------------|-----------------------------------------------------------------------------|----------------|
+| `accountId`   | UUID        | Oui         | ID du compte bancaire pour lequel générer l'historique.                     |                |
+| `fromDate`    | LocalDate   | Oui         | Date de début de la période (format ISO : AAAA-MM-JJ).                      |                |
+| `toDate`      | LocalDate   | Oui         | Date de fin de la période (format ISO : AAAA-MM-JJ).                        |                |
+| `granularity` | String      | Non         | Granularité de l'historique : `daily` (quotidienne), `monthly` (mensuelle). | `daily`        |
 
 **Exemple de requête :**
 
@@ -41,24 +45,28 @@ Permet de visualiser l'évolution du solde d'un compte bancaire sur une période
 ]
 ```
 
+<Callout type="note">
 **Note :** L'implémentation actuelle de cette fonctionnalité est un placeholder. Elle retournera une liste vide. Une logique plus robuste basée sur les transactions confirmées est nécessaire pour un calcul précis de l'historique.
+</Callout>
 
 ## 2. Rapport des Flux de Trésorerie (Cash Flow)
 
+<Card title="GET /api/v1/analytics/cashflow" href="/api/v1/analytics/cashflow" method="GET">
 Génère un rapport analysant les entrées et sorties de fonds sur une période donnée, potentiellement pour plusieurs comptes ou banques, avec options de regroupement et de ventilation.
 
-*   **Endpoint :** `GET /api/v1/analytics/cashflow`
-*   **Rôles requis :** ADMIN, USER, VIEWER, DATA_PROCESSOR
-*   **Paramètres de requête :**
+**Rôles requis :** ADMIN, USER, VIEWER, DATA_PROCESSOR
+</Card>
 
-    | Paramètre       | Type          | Obligatoire | Description                                                                                                | Défaut     |
-        |-----------------|---------------|-------------|------------------------------------------------------------------------------------------------------------|------------|
-    | `accountIds`    | List<UUID>    | Non         | Liste des ID de comptes à inclure dans le rapport. Si omis, tous les comptes pertinents peuvent être inclus. |            |
-    | `bankIds`       | List<UUID>    | Non         | Liste des ID de banques à inclure.                                                                         |            |
-    | `fromDate`      | LocalDate     | Oui         | Date de début de la période (format ISO : AAAA-MM-JJ).                                                       |            |
-    | `toDate`        | LocalDate     | Oui         | Date de fin de la période (format ISO : AAAA-MM-JJ).                                                         |            |
-    | `groupByPeriod` | String        | Non         | Période de regroupement des flux : `monthly` (mensuel), `quarterly` (trimestriel), `yearly` (annuel).       | `monthly`  |
-    | `breakdownBy`   | String        | Non         | Critère de ventilation des flux : `account` (par compte), `bank` (par banque).                               |            |
+**Paramètres de requête :**
+
+| Paramètre       | Type          | Obligatoire | Description                                                                                                | Défaut     |
+|-----------------|---------------|-------------|------------------------------------------------------------------------------------------------------------|------------|
+| `accountIds`    | List<UUID>    | Non         | Liste des ID de comptes à inclure dans le rapport. Si omis, tous les comptes pertinents peuvent être inclus. |            |
+| `bankIds`       | List<UUID>    | Non         | Liste des ID de banques à inclure.                                                                         |            |
+| `fromDate`      | LocalDate     | Oui         | Date de début de la période (format ISO : AAAA-MM-JJ).                                                       |            |
+| `toDate`        | LocalDate     | Oui         | Date de fin de la période (format ISO : AAAA-MM-JJ).                                                         |            |
+| `groupByPeriod` | String        | Non         | Période de regroupement des flux : `monthly` (mensuel), `quarterly` (trimestriel), `yearly` (annuel).       | `monthly`  |
+| `breakdownBy`   | String        | Non         | Critère de ventilation des flux : `account` (par compte), `bank` (par banque).                               |            |
 
 **Exemple de requête (flux mensuels pour des comptes spécifiques, ventilés par compte) :**
 
@@ -92,20 +100,24 @@ Génère un rapport analysant les entrées et sorties de fonds sur une période 
 }
 ```
 
+<Callout type="note">
 **Note :** L'implémentation actuelle de cette fonctionnalité est un placeholder. Elle retournera des valeurs par défaut (ZERO pour les montants, map vide pour `breakdown`). Une logique d'agrégation complexe basée sur les transactions confirmées est requise.
+</Callout>
 
 ## 3. Solde Consolidé
 
+<Card title="GET /api/v1/analytics/consolidated-balance" href="/api/v1/analytics/consolidated-balance" method="GET">
 Calcule le solde total de tous les comptes bancaires, converti dans une devise cible unique, à une date donnée. Utilise les taux de change disponibles pour la conversion.
 
-*   **Endpoint :** `GET /api/v1/analytics/consolidated-balance`
-*   **Rôles requis :** ADMIN, USER, VIEWER, DATA_PROCESSOR
-*   **Paramètres de requête :**
+**Rôles requis :** ADMIN, USER, VIEWER, DATA_PROCESSOR
+</Card>
 
-    | Paramètre        | Type        | Obligatoire | Description                                                                 | Défaut      |
-        |------------------|-------------|-------------|-----------------------------------------------------------------------------|-------------|
-    | `targetCurrency` | String      | Oui         | Code de la devise cible pour la consolidation (ex: EUR, USD).               |             |
-    | `date`           | LocalDate   | Non         | Date pour laquelle effectuer la consolidation (format ISO : AAAA-MM-JJ).    | Date du jour |
+**Paramètres de requête :**
+
+| Paramètre        | Type        | Obligatoire | Description                                                                 | Défaut      |
+|------------------|-------------|-------------|-----------------------------------------------------------------------------|-------------|
+| `targetCurrency` | String      | Oui         | Code de la devise cible pour la consolidation (ex: EUR, USD).               |             |
+| `date`           | LocalDate   | Non         | Date pour laquelle effectuer la consolidation (format ISO : AAAA-MM-JJ).    | Date du jour |
 
 **Exemple de requête (solde consolidé en EUR à la date du 2023-10-27) :**
 
@@ -126,7 +138,8 @@ Calcule le solde total de tous les comptes bancaires, converti dans une devise c
 }
 ```
 
-**Comportement en cas de taux de change manquants :**
+<Callout type="warning" title="Comportement en cas de taux de change manquants">
 Si un taux de change nécessaire pour la conversion d'une devise d'un compte vers la devise cible n'est pas trouvé pour la date spécifiée, le solde de ce compte ne sera pas inclus dans le `totalBalanceInTargetCurrency`. Un avertissement sera logué côté serveur. Le champ `balancesInOriginalCurrency` listera toujours les soldes dans leurs devises d'origine.
 
 Si aucun taux de change n'est trouvé pour aucun des comptes nécessitant une conversion, le `totalBalanceInTargetCurrency` ne reflétera que la somme des soldes des comptes déjà dans la devise cible.
+</Callout>

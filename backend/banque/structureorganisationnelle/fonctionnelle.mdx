@@ -1,3 +1,5 @@
+[Voir la documentation technique](./technique.mdx)
+
 # Documentation Fonctionnelle - Module Structure Organisationnelle
 
 Ce document détaille les fonctionnalités relatives à la gestion de la structure organisationnelle, y compris les informations sur l'entreprise elle-même et les banques avec lesquelles elle interagit.
@@ -8,10 +10,11 @@ Le système est conçu pour gérer une organisation principale (l'entreprise uti
 
 ### 1.1. Consulter les Informations de l'Organisation Principale
 
+<Card title="GET /api/v1/organization" href="/api/v1/organization" method="GET">
 Permet de récupérer les informations détaillées de l'organisation principale enregistrée dans le système.
 
-*   **Endpoint :** `GET /api/v1/organization`
-*   **Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+**Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+</Card>
 
 **Exemple de réponse (Succès - 200 OK) :**
 
@@ -36,23 +39,27 @@ Permet de récupérer les informations détaillées de l'organisation principale
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `404 Not Found` : Si aucune organisation n'est configurée dans le système.
+</Callout>
 
 ### 1.2. Créer l'Organisation Principale
 
+<Card title="POST /api/v1/organization" href="/api/v1/organization" method="POST">
 Permet d'enregistrer les informations de l'organisation principale si elle n'existe pas encore. Une seule organisation principale est généralement gérée.
 
-*   **Endpoint :** `POST /api/v1/organization`
-*   **Rôles requis :** ADMIN
-*   **Corps de la requête :** `OrganizationDto` (sans `id`)
+**Rôles requis :** ADMIN
+</Card>
 
-    | Champ                | Type         | Obligatoire | Description                                                                                                |
-        |----------------------|--------------|-------------|------------------------------------------------------------------------------------------------------------|
-    | `name`               | String       | Oui         | Nom officiel de l'organisation (max 255 caractères).                                                       |
-    | `registrationNumber` | String       | Non         | Numéro d'enregistrement légal (ex: SIREN/SIRET, RCS) (max 100 caractères).                                   |
-    | `vatNumber`          | String       | Non         | Numéro de TVA intracommunautaire (max 50 caractères).                                                        |
-    | `defaultCurrency`    | String       | Non         | Code ISO de la devise par défaut pour l'organisation (3 lettres, ex: EUR).                                   |
-    | `primaryAddress`     | AddressDto   | Non         | Adresse principale de l'organisation. Si l'ID de l'adresse est omis, une nouvelle adresse sera créée.        |
+**Corps de la requête :** `OrganizationDto` (sans `id`)
+
+| Champ                | Type         | Obligatoire | Description                                                                                                |
+|----------------------|--------------|-------------|------------------------------------------------------------------------------------------------------------|
+| `name`               | String       | Oui         | Nom officiel de l'organisation (max 255 caractères).                                                       |
+| `registrationNumber` | String       | Non         | Numéro d'enregistrement légal (ex: SIREN/SIRET, RCS) (max 100 caractères).                                   |
+| `vatNumber`          | String       | Non         | Numéro de TVA intracommunautaire (max 50 caractères).                                                        |
+| `defaultCurrency`    | String       | Non         | Code ISO de la devise par défaut pour l'organisation (3 lettres, ex: EUR).                                   |
+| `primaryAddress`     | AddressDto   | Non         | Adresse principale de l'organisation. Si l'ID de l'adresse est omis, une nouvelle adresse sera créée.        |
 
 **Exemple de requête :**
 
@@ -77,16 +84,20 @@ Similaire à la réponse du `GET`, avec l'ID généré pour la nouvelle organisa
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `400 Bad Request` : Si les données fournies sont invalides (ex: `name` manquant) ou si un `id` est fourni dans la requête.
 *   `409 Conflict` : Si une organisation principale existe déjà.
+</Callout>
 
 ### 1.3. Mettre à Jour les Informations de l'Organisation Principale
 
+<Card title="PUT /api/v1/organization" href="/api/v1/organization" method="PUT">
 Permet de modifier les informations de l'organisation principale existante.
 
-*   **Endpoint :** `PUT /api/v1/organization`
-*   **Rôles requis :** ADMIN
-*   **Corps de la requête :** `OrganizationDto` (l'`id` de l'organisation n'est pas requis dans le corps car il s'agit de l'organisation principale unique, mais si l'adresse a un `id`, elle sera mise à jour, sinon une nouvelle adresse sera créée et liée).
+**Rôles requis :** ADMIN
+</Card>
+
+**Corps de la requête :** `OrganizationDto` (l'`id` de l'organisation n'est pas requis dans le corps car il s'agit de l'organisation principale unique, mais si l'adresse a un `id`, elle sera mise à jour, sinon une nouvelle adresse sera créée et liée).
 
 **Exemple de requête (Mise à jour de la devise par défaut et de l'adresse) :**
 
@@ -115,8 +126,10 @@ Retourne l'`OrganizationDto` mis à jour.
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `400 Bad Request` : Si les données fournies sont invalides.
 *   `404 Not Found` : Si l'organisation principale n'existe pas et que le PUT ne la crée pas (selon la logique du service, le PUT actuel peut créer si l'organisation n'existe pas).
+</Callout>
 
 ## 2. Gestion des Banques
 
@@ -124,10 +137,11 @@ Permet de gérer les informations des banques partenaires de l'organisation.
 
 ### 2.1. Lister Toutes les Banques
 
+<Card title="GET /api/v1/banks" href="/api/v1/banks" method="GET">
 Récupère une liste de toutes les banques enregistrées et associées à l'organisation principale.
 
-*   **Endpoint :** `GET /api/v1/banks`
-*   **Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+**Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+</Card>
 
 **Exemple de réponse (Succès - 200 OK) :**
 
@@ -163,15 +177,17 @@ Récupère une liste de toutes les banques enregistrées et associées à l'orga
 
 ### 2.2. Obtenir une Banque par son ID
 
+<Card title="GET /api/v1/banks/{bankId}" href="/api/v1/banks/{bankId}" method="GET">
 Récupère les détails d'une banque spécifique.
 
-*   **Endpoint :** `GET /api/v1/banks/{bankId}`
-*   **Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
-*   **Paramètre de chemin :**
+**Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+</Card>
 
-    | Paramètre | Type | Description                   |
-        |-----------|------|-------------------------------|
-    | `bankId`  | UUID | ID unique de la banque.       |
+**Paramètre de chemin :**
+
+| Paramètre | Type | Description                   |
+|-----------|------|-------------------------------|
+| `bankId`  | UUID | ID unique de la banque.       |
 
 **Exemple de réponse (Succès - 200 OK) :**
 
@@ -179,24 +195,28 @@ Format identique à un élément de la liste ci-dessus.
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `404 Not Found` : Si la banque n'est pas trouvée.
+</Callout>
 
 ### 2.3. Créer une Nouvelle Banque
 
+<Card title="POST /api/v1/banks" href="/api/v1/banks" method="POST">
 Enregistre une nouvelle banque associée à l'organisation principale.
 
-*   **Endpoint :** `POST /api/v1/banks`
-*   **Rôles requis :** ADMIN, DATA_PROCESSOR
-*   **Corps de la requête :** `BankDto` (sans `id` pour la banque, l'adresse ou les contacts s'ils sont nouveaux)
+**Rôles requis :** ADMIN, DATA_PROCESSOR
+</Card>
 
-    | Champ            | Type           | Obligatoire | Description                                                                                             |
-        |------------------|----------------|-------------|---------------------------------------------------------------------------------------------------------|
-    | `organizationId` | UUID           | Oui         | ID de l'organisation principale à laquelle cette banque est rattachée.                                      |
-    | `name`           | String         | Oui         | Nom de la banque (max 255 caractères).                                                                    |
-    | `swiftCode`      | String         | Non         | Code SWIFT/BIC de la banque (max 11 caractères).                                                          |
-    | `website`        | String         | Non         | Site web de la banque (max 2000 caractères).                                                              |
-    | `primaryAddress` | AddressDto     | Non         | Adresse principale de la banque. Si `id` est omis, une nouvelle adresse est créée.                        |
-    | `contacts`       | Set<ContactDto>| Non         | Ensemble de contacts pour cette banque. Si `id` est omis pour un contact, un nouveau contact est créé (ou trouvé par email). |
+**Corps de la requête :** `BankDto` (sans `id` pour la banque, l'adresse ou les contacts s'ils sont nouveaux)
+
+| Champ            | Type           | Obligatoire | Description                                                                                             |
+|------------------|----------------|-------------|---------------------------------------------------------------------------------------------------------|
+| `organizationId` | UUID           | Oui         | ID de l'organisation principale à laquelle cette banque est rattachée.                                      |
+| `name`           | String         | Oui         | Nom de la banque (max 255 caractères).                                                                    |
+| `swiftCode`      | String         | Non         | Code SWIFT/BIC de la banque (max 11 caractères).                                                          |
+| `website`        | String         | Non         | Site web de la banque (max 2000 caractères).                                                              |
+| `primaryAddress` | AddressDto     | Non         | Adresse principale de la banque. Si `id` est omis, une nouvelle adresse est créée.                        |
+| `contacts`       | Set<ContactDto>| Non         | Ensemble de contacts pour cette banque. Si `id` est omis pour un contact, un nouveau contact est créé (ou trouvé par email). |
 
 **Exemple de requête :**
 
@@ -230,16 +250,20 @@ Retourne le `BankDto` créé, avec les ID générés pour la banque, son adresse
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `400 Bad Request` : Si les données sont invalides (ex: `name` manquant, `organizationId` non valide ou non trouvé).
 *   `400 Bad Request` (via `EntityNotFoundException`) : Si `organizationId` ou un `contactId` (si fourni) n'est pas trouvé.
+</Callout>
 
 ### 2.4. Mettre à Jour une Banque
 
+<Card title="PUT /api/v1/banks/{bankId}" href="/api/v1/banks/{bankId}" method="PUT">
 Modifie les informations d'une banque existante.
 
-*   **Endpoint :** `PUT /api/v1/banks/{bankId}`
-*   **Rôles requis :** ADMIN, DATA_PROCESSOR
-*   **Corps de la requête :** `BankDto` (avec les champs à mettre à jour). L'`organizationId` doit être fourni et correspondre à l'organisation existante ou à une nouvelle si la banque change d'organisation.
+**Rôles requis :** ADMIN, DATA_PROCESSOR
+</Card>
+
+**Corps de la requête :** `BankDto` (avec les champs à mettre à jour). L'`organizationId` doit être fourni et correspondre à l'organisation existante ou à une nouvelle si la banque change d'organisation.
 
 **Exemple de requête (Mise à jour du site web et ajout d'un contact) :**
 
@@ -284,15 +308,18 @@ Retourne le `BankDto` mis à jour.
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `400 Bad Request` : Si les données sont invalides ou si `organizationId` ou `contactId` n'est pas trouvé.
 *   `404 Not Found` : Si la banque avec `bankId` n'est pas trouvée.
+</Callout>
 
 ### 2.5. Supprimer une Banque
 
+<Card title="DELETE /api/v1/banks/{bankId}" href="/api/v1/banks/{bankId}" method="DELETE">
 Supprime une banque du système.
 
-*   **Endpoint :** `DELETE /api/v1/banks/{bankId}`
-*   **Rôles requis :** ADMIN
+**Rôles requis :** ADMIN
+</Card>
 
 **Exemple de réponse (Succès - 204 No Content) :**
 
@@ -300,11 +327,14 @@ Supprime une banque du système.
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `404 Not Found` : Si la banque n'est pas trouvée.
 *   (Potentiellement `409 Conflict` si la banque est liée à d'autres entités non supprimables, par exemple des comptes bancaires actifs - non géré explicitement par le code fourni mais une considération fonctionnelle).
+</Callout>
 
 ## 3. Gestion des Adresses et Contacts
 
+<Callout type="info">
 Les adresses et contacts sont principalement gérés à travers les entités auxquelles ils sont rattachés (Organisation, Banque).
 
 *   **Adresses (`AddressDto`) :**
@@ -318,3 +348,4 @@ Les adresses et contacts sont principalement gérés à travers les entités aux
     *   La liaison entre banques et contacts est de type Plusieurs-à-Plusieurs.
 
 Il n'y a pas d'endpoints dédiés pour gérer les adresses ou les contacts de manière isolée dans ce module ; leur gestion est intégrée aux opérations sur les organisations et les banques.
+</Callout>

@@ -11,45 +11,100 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation Backend ERP Cochepa",
         "groups": [
           {
-            "group": "Get Started",
-            "pages": [
-              "index",
-              "quickstart",
-              "development"
+            "group": "Module Banque",
+            "groups": [
+              {
+                "group": "Comptes",
+                "pages": [
+                  "backend/banque/comptes/fonctionnelle.mdx",
+                  "backend/banque/comptes/technique.mdx"
+                ]
+              },
+              {
+                "group": "Analyses",
+                "pages": [
+                  "backend/banque/analyses/fonctionnelle.mdx",
+                  "backend/banque/analyses/technique.mdx"
+                ]
+              },
+              {
+                "group": "Taux De Change",
+                "pages": [
+                  "backend/banque/tauxdechange/fonctionnelle.mdx",
+                  "backend/banque/tauxdechange/technique.mdx"
+                ]
+              },
+              {
+                "group": "Gestion des Accès et des Identités",
+                "pages": [
+                  "backend/banque/gai/fonctionnelle.mdx",
+                  "backend/banque/gai/technique.mdx"
+                ]
+              },
+              {
+                "group": "OPCVM",
+                "pages": [
+                  "backend/banque/opcvm/fonctionnelle.mdx",
+                  "backend/banque/opcvm/technique.mdx"
+                ]
+              },
+              {
+                "group": "Structure Organisationnelle",
+                "pages": [
+                  "backend/banque/structureorganisationnelle/fonctionnelle.mdx",
+                  "backend/banque/structureorganisationnelle/technique.mdx"
+                ]
+              },
+              {
+                "group": "Importation De Relevés",
+                "pages": [
+                  "backend/banque/importationreleves/fonctionnelle.mdx",
+                  "backend/banque/importationreleves/technique.mdx"
+                ]
+              }
             ]
           },
           {
-            "group": "Essentials",
+            "group": "Module Ventes - Prochainement",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/settings",
-              "essentials/navigation",
-              "essentials/reusable-snippets"
+              "backend/ventes/index.mdx"
+            ]
+          },
+          {
+            "group": "Module Achats - Prochainement",
+            "pages": [
+              "backend/achats/index.mdx"
+            ]
+          },
+          {
+            "group": "Module Production - Prochainement",
+            "pages": [
+              "backend/production/index.mdx"
             ]
           }
         ]
       },
       {
-        "tab": "API Reference",
+        "tab": "Documentation Frontend ERP Cochepa - Prochainement",
         "groups": [
           {
-            "group": "API Documentation",
+            "group": "Guide Frontend",
             "pages": [
-              "api-reference/introduction"
+              "frontend/guide/index.mdx"
             ]
-          },
+          }
+        ]
+      },
+      {
+        "tab": "Documentation Infrastructure & Configuration - Prochainement",
+        "groups": [
           {
-            "group": "Endpoint Examples",
+            "group": "Guide Infrastructure",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "infrastructure/guide/index.mdx"
             ]
           }
         ]

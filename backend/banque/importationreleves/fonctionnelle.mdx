@@ -1,15 +1,19 @@
+[Voir la documentation technique](./technique.mdx)
+
 # Documentation Fonctionnelle - Module d'Importation de Relevés Bancaires
 
 Ce document détaille les fonctionnalités relatives à l'importation et au traitement des relevés bancaires dans le système ERP Banking. Ce module permet d'automatiser l'intégration des transactions bancaires à partir de fichiers fournis par les banques.
 
 ## 1. Vue d'Ensemble du Processus d'Importation
 
+<Callout type="info" title="Processus Général d'Importation de Relevés">
 Le processus général d'importation de relevés est le suivant :
 1.  **Configuration des Modèles d'Importation :** Un administrateur configure des modèles (templates) qui décrivent la structure des fichiers de relevés pour chaque banque ou format de fichier (ex: CSV, Excel). Chaque modèle spécifie comment extraire les informations pertinentes (date, description, montant, etc.) des fichiers.
 2.  **Téléversement du Fichier de Relevé :** Un utilisateur (typiquement un gestionnaire de données) téléverse un fichier de relevé bancaire via l'interface du système, en sélectionnant le compte bancaire concerné et le modèle d'importation approprié.
 3.  **Parsing et Validation :** Le système utilise le modèle sélectionné pour lire (parser) le fichier, extraire les transactions et les informations d'en-tête. Des validations sont effectuées pour s'assurer de la cohérence des données.
 4.  **Stockage des Transactions :** Les transactions parsées avec succès sont stockées dans le système avec un statut initial (ex: "En attente de révision"). Elles sont alors prêtes à être consultées, révisées et confirmées dans le module de gestion des comptes.
 5.  **Révision et Confirmation :** Les transactions importées sont ensuite révisées et confirmées par un utilisateur habilité (voir documentation du module `account`). La confirmation met à jour le solde du compte bancaire concerné.
+</Callout>
 
 ## 2. Gestion des Modèles d'Importation
 
@@ -17,19 +21,21 @@ Les modèles d'importation sont essentiels pour permettre au système de compren
 
 ### 2.1. Créer un Modèle d'Importation
 
+<Card title="POST /api/v1/import-templates" href="/api/v1/import-templates" method="POST">
 Permet à un administrateur de définir un nouveau modèle pour un format de fichier de relevé spécifique.
 
-*   **Endpoint :** `POST /api/v1/import-templates`
-*   **Rôles requis :** ADMIN
-*   **Corps de la requête :** `ImportTemplateDto`
+**Rôles requis :** ADMIN
+</Card>
 
-    | Champ           | Type                                  | Obligatoire | Description                                                                                                                               |
-        |-----------------|---------------------------------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-    | `name`          | String                                | Oui         | Nom unique du modèle (ex: "Relevé CSV Banque X", "Format Excel Banque Y V2").                                                                 |
-    | `bankId`        | UUID                                  | Oui         | ID de la banque à laquelle ce modèle est associé. Peut être nul pour un modèle générique.                                                    |
-    | `sourceType`    | String (Enum: `EXCEL`, `CSV`, `API`, `MANUAL`) | Oui         | Type de source du fichier (ex: `EXCEL` pour les fichiers .xls/.xlsx, `CSV` pour les fichiers .csv).                                   |
-    | `description`   | String                                | Non         | Description textuelle du modèle.                                                                                                          |
-    | `fieldMappings` | List<`TemplateFieldMappingDto`>       | Oui         | Liste des règles de mapping des champs (voir section 2.1.1).                                                                              |
+**Corps de la requête :** `ImportTemplateDto`
+
+| Champ           | Type                                  | Obligatoire | Description                                                                                                                               |
+|-----------------|---------------------------------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `name`          | String                                | Oui         | Nom unique du modèle (ex: "Relevé CSV Banque X", "Format Excel Banque Y V2").                                                                 |
+| `bankId`        | UUID                                  | Oui         | ID de la banque à laquelle ce modèle est associé. Peut être nul pour un modèle générique.                                                    |
+| `sourceType`    | String (Enum: `EXCEL`, `CSV`, `API`, `MANUAL`) | Oui         | Type de source du fichier (ex: `EXCEL` pour les fichiers .xls/.xlsx, `CSV` pour les fichiers .csv).                                   |
+| `description`   | String                                | Non         | Description textuelle du modèle.                                                                                                          |
+| `fieldMappings` | List<`TemplateFieldMappingDto`>       | Oui         | Liste des règles de mapping des champs (voir section 2.1.1).                                                                              |
 
 #### 2.1.1. Configuration du Mapping des Champs (`TemplateFieldMappingDto`)
 
@@ -162,20 +168,24 @@ Retourne l'`ImportTemplateDto` créé, avec les ID générés.
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `400 Bad Request` : Si les données sont invalides (ex: `name` manquant, `bankId` non valide ou banque non trouvée).
 *   `500 Internal Server Error` : Erreur serveur.
+</Callout>
 
 ### 2.2. Lister les Modèles d'Importation
 
+<Card title="GET /api/v1/import-templates" href="/api/v1/import-templates" method="GET">
 Permet de récupérer la liste des modèles d'importation existants, potentiellement filtrée par banque.
 
-*   **Endpoint :** `GET /api/v1/import-templates`
-*   **Rôles requis :** ADMIN, DATA_PROCESSOR
-*   **Paramètres de requête optionnels :**
+**Rôles requis :** ADMIN, DATA_PROCESSOR
+</Card>
 
-    | Paramètre | Type | Description                                                        |
-        |-----------|------|--------------------------------------------------------------------|
-    | `bankId`  | UUID | ID de la banque pour filtrer les modèles (modèles génériques et ceux de la banque sont retournés). |
+**Paramètres de requête optionnels :**
+
+| Paramètre | Type | Description                                                        |
+|-----------|------|--------------------------------------------------------------------|
+| `bankId`  | UUID | ID de la banque pour filtrer les modèles (modèles génériques et ceux de la banque sont retournés). |
 
 **Exemple de réponse (Succès - 200 OK) :**
 
@@ -183,29 +193,35 @@ Liste de `ImportTemplateDto` (format similaire à la réponse de création).
 
 ### 2.3. Obtenir un Modèle d'Importation par son ID
 
+<Card title="GET /api/v1/import-templates/{templateId}" href="/api/v1/import-templates/{templateId}" method="GET">
 Récupère les détails d'un modèle spécifique.
 
-*   **Endpoint :** `GET /api/v1/import-templates/{templateId}`
-*   **Rôles requis :** ADMIN, DATA_PROCESSOR
+**Rôles requis :** ADMIN, DATA_PROCESSOR
+</Card>
+
 *   **Réponse (Succès - 200 OK) :** `ImportTemplateDto`.
 *   **Réponse d'erreur (404 Not Found) :** Si le modèle n'est pas trouvé.
 
 ### 2.4. Mettre à Jour un Modèle d'Importation
 
+<Card title="PUT /api/v1/import-templates/{templateId}" href="/api/v1/import-templates/{templateId}" method="PUT">
 Modifie un modèle existant.
 
-*   **Endpoint :** `PUT /api/v1/import-templates/{templateId}`
-*   **Rôles requis :** ADMIN
+**Rôles requis :** ADMIN
+</Card>
+
 *   **Corps de la requête :** `ImportTemplateDto` (avec les champs à mettre à jour).
 *   **Réponse (Succès - 200 OK) :** `ImportTemplateDto` mis à jour.
 *   **Réponses d'erreur :** Similaires à la création (400, 404, 500).
 
 ### 2.5. Supprimer un Modèle d'Importation
 
+<Card title="DELETE /api/v1/import-templates/{templateId}" href="/api/v1/import-templates/{templateId}" method="DELETE">
 Supprime un modèle.
 
-*   **Endpoint :** `DELETE /api/v1/import-templates/{templateId}`
-*   **Rôles requis :** ADMIN
+**Rôles requis :** ADMIN
+</Card>
+
 *   **Réponse (Succès - 204 No Content)**.
 *   **Réponse d'erreur (404 Not Found) :** Si le modèle n'est pas trouvé.
 
@@ -215,26 +231,29 @@ Une fois les modèles configurés, les utilisateurs peuvent importer les fichier
 
 ### 3.1. Téléverser un Fichier de Relevé Bancaire
 
+<Card title="POST /api/v1/accounts/{accountId}/statements/upload" href="/api/v1/accounts/{accountId}/statements/upload" method="POST">
 Permet de soumettre un fichier de relevé pour un compte bancaire spécifique, en utilisant un modèle d'importation prédéfini.
 
-*   **Endpoint :** `POST /api/v1/accounts/{accountId}/statements/upload`
-*   **Rôles requis :** ADMIN, DATA_PROCESSOR
-*   **Paramètres de chemin :**
+**Rôles requis :** ADMIN, DATA_PROCESSOR
+</Card>
 
-    | Paramètre   | Type | Description                   |
-        |-------------|------|-------------------------------|
-    | `accountId` | UUID | ID du compte bancaire concerné. |
-*   **Paramètres de la requête (form-data) :**
+**Paramètres de chemin :**
 
-    | Paramètre    | Type          | Obligatoire | Description                                   |
-        |--------------|---------------|-------------|-----------------------------------------------|
-    | `file`       | MultipartFile | Oui         | Le fichier de relevé (ex: .xlsx, .csv).     |
-    | `templateId` | UUID          | Oui         | ID du modèle d'importation à utiliser.        |
+| Paramètre   | Type | Description                   |
+|-------------|------|-------------------------------|
+| `accountId` | UUID | ID du compte bancaire concerné. |
 
-**Formats de Fichiers Supportés (basé sur la logique de `StatementProcessingService`) :**
+**Paramètres de la requête (form-data) :**
 
+| Paramètre    | Type          | Obligatoire | Description                                   |
+|--------------|---------------|-------------|-----------------------------------------------|
+| `file`       | MultipartFile | Oui         | Le fichier de relevé (ex: .xlsx, .csv).     |
+| `templateId` | UUID          | Oui         | ID du modèle d'importation à utiliser.        |
+
+<Callout type="note" title="Formats de Fichiers Supportés">
 *   **Excel :** Fichiers `.xls` et `.xlsx`. Le service utilise Apache POI pour le parsing.
 *   **CSV :** Bien que `SourceType.CSV` existe, la logique de parsing actuelle dans `StatementProcessingService` est fortement orientée Excel (utilisation de `WorkbookFactory`, `Sheet`, `Row`, `Cell`). Une implémentation spécifique pour CSV serait nécessaire si ce format doit être pleinement supporté.
+</Callout>
 
 **Exemple de réponse (Succès - 200 OK) :**
 
@@ -267,15 +286,18 @@ Les erreurs mineures sont aussi loguées côté serveur et peuvent être stocké
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `400 Bad Request` :
     *   Si le fichier est vide.
     *   Si le `templateId` ou `accountId` n'est pas valide ou non trouvé.
     *   Si le modèle ne correspond pas à la banque du compte : `"Le modèle d'importation sélectionné ('<nom_modele>') n'est pas pour la banque de ce compte ('<nom_banque_compte>')."`
     *   Si le parsing échoue complètement sans trouver de transactions : `"Échec du parsing du fichier, aucune transaction trouvée. Erreurs: <liste_erreurs>"` ou `"Aucune transaction trouvée dans le fichier après parsing."`
 *   `500 Internal Server Error` : En cas d'erreur majeure durant le traitement ou la sauvegarde des données.
+</Callout>
 
 ## 4. Traitement et Stockage des Données
 
+<Callout type="info" title="Fonctionnement Interne du Traitement et Stockage">
 *   **Parsing (`StatementProcessingService`) :**
     *   Utilise Apache POI pour lire les fichiers Excel.
     *   Se base sur les `TemplateFieldMappingEntity` du modèle choisi pour localiser et extraire les données (en-tête et transactions).
@@ -289,3 +311,4 @@ Les erreurs mineures sont aussi loguées côté serveur et peuvent être stocké
     *   La date `lastStatementImportDate` sur l'`AccountEntity` concernée est mise à jour.
 
 Une fois les transactions importées et stockées, elles sont disponibles pour la révision et la confirmation via les fonctionnalités du module `account` (voir `AccountStatementController`). La confirmation de ces transactions impactera le solde du compte bancaire.
+</Callout>

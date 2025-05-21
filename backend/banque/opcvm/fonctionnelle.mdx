@@ -1,3 +1,5 @@
+[Voir la documentation technique](./technique.mdx)
+
 # Documentation Fonctionnelle - Module de Gestion des OPCVM (Fonds d'Investissement)
 
 Ce document détaille les fonctionnalités relatives à la gestion des détentions d'Organismes de Placement Collectif en Valeurs Mobilières (OPCVM) ou fonds d'investissement au sein du système ERP Banking.
@@ -8,15 +10,17 @@ Permet de visualiser les fonds d'investissement actuellement détenus.
 
 ### 1.1. Lister Tous les Fonds Détenus
 
+<Card title="GET /api/v1/opcvm-holdings" href="/api/v1/opcvm-holdings" method="GET">
 Permet de récupérer une liste de tous les fonds OPCVM détenus, avec la possibilité de filtrer par compte bancaire de rattachement.
 
-*   **Endpoint :** `GET /api/v1/opcvm-holdings`
-*   **Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
-*   **Paramètres de requête optionnels :**
+**Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+</Card>
 
-    | Paramètre   | Type | Description                                                                |
-        |-------------|------|----------------------------------------------------------------------------|
-    | `accountId` | UUID | ID du compte bancaire pour filtrer les détentions d'OPCVM associées à ce compte. |
+**Paramètres de requête optionnels :**
+
+| Paramètre   | Type | Description                                                                |
+|-------------|------|----------------------------------------------------------------------------|
+| `accountId` | UUID | ID du compte bancaire pour filtrer les détentions d'OPCVM associées à ce compte. |
 
 **Exemple de requête (tous les fonds) :**
 
@@ -59,15 +63,17 @@ Chaque élément de la liste est un `OpcvmHoldingDto`.
 
 ### 1.2. Obtenir un Fond Détenu Spécifique par son ID
 
+<Card title="GET /api/v1/opcvm-holdings/{holdingId}" href="/api/v1/opcvm-holdings/{holdingId}" method="GET">
 Permet de récupérer les détails d'une détention d'OPCVM spécifique en utilisant son identifiant unique.
 
-*   **Endpoint :** `GET /api/v1/opcvm-holdings/{holdingId}`
-*   **Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
-*   **Paramètre de chemin :**
+**Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+</Card>
 
-    | Paramètre   | Type | Description                                  |
-        |-------------|------|----------------------------------------------|
-    | `holdingId` | UUID | ID unique de la détention d'OPCVM à récupérer. |
+**Paramètre de chemin :**
+
+| Paramètre   | Type | Description                                  |
+|-------------|------|----------------------------------------------|
+| `holdingId` | UUID | ID unique de la détention d'OPCVM à récupérer. |
 
 **Exemple de requête :**
 
@@ -91,7 +97,9 @@ Permet de récupérer les détails d'une détention d'OPCVM spécifique en utili
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `404 Not Found` : Si aucune détention d'OPCVM ne correspond à l'`holdingId` fourni.
+</Callout>
 
 ## 2. Gestion des Départs d'OPCVM / Détentions d'OPCVM
 
@@ -99,21 +107,23 @@ Permet d'ajouter, de mettre à jour ou de supprimer des lignes de détention d'O
 
 ### 2.1. Créer une Nouvelle Ligne de Détention d'OPCVM
 
+<Card title="POST /api/v1/opcvm-holdings" href="/api/v1/opcvm-holdings" method="POST">
 Permet d'enregistrer une nouvelle détention de parts d'un fonds d'investissement.
 
-*   **Endpoint :** `POST /api/v1/opcvm-holdings`
-*   **Rôles requis :** ADMIN, DATA_PROCESSOR
-*   **Corps de la requête :** `OpcvmHoldingDto` (sans `id` ni `totalValue` qui sont générés/calculés par le serveur)
+**Rôles requis :** ADMIN, DATA_PROCESSOR
+</Card>
 
-    | Champ           | Type         | Obligatoire | Description                                                                    |
-        |-----------------|--------------|-------------|--------------------------------------------------------------------------------|
-    | `accountId`     | UUID         | Non         | ID du compte bancaire auquel cette détention est rattachée.                      |
-    | `name`          | String       | Oui         | Nom du fonds OPCVM (max 255 caractères).                                        |
-    | `isinCode`      | String       | Non         | Code ISIN du fonds (max 12 caractères). Doit être unique par `accountId` si fourni. |
-    | `quantity`      | BigDecimal   | Oui         | Nombre de parts détenues (doit être positif).                                    |
-    | `unitPrice`     | BigDecimal   | Oui         | Valeur liquidative (VL) ou prix unitaire de la part (positif ou nul).            |
-    | `currency`      | String       | Oui         | Code ISO de la devise de valorisation (3 lettres).                               |
-    | `valuationDate` | LocalDate    | Oui         | Date à laquelle la quantité et le prix unitaire sont valides.                    |
+**Corps de la requête :** `OpcvmHoldingDto` (sans `id` ni `totalValue` qui sont générés/calculés par le serveur)
+
+| Champ           | Type         | Obligatoire | Description                                                                    |
+|-----------------|--------------|-------------|--------------------------------------------------------------------------------|
+| `accountId`     | UUID         | Non         | ID du compte bancaire auquel cette détention est rattachée.                      |
+| `name`          | String       | Oui         | Nom du fonds OPCVM (max 255 caractères).                                        |
+| `isinCode`      | String       | Non         | Code ISIN du fonds (max 12 caractères). Doit être unique par `accountId` si fourni. |
+| `quantity`      | BigDecimal   | Oui         | Nombre de parts détenues (doit être positif).                                    |
+| `unitPrice`     | BigDecimal   | Oui         | Valeur liquidative (VL) ou prix unitaire de la part (positif ou nul).            |
+| `currency`      | String       | Oui         | Code ISO de la devise de valorisation (3 lettres).                               |
+| `valuationDate` | LocalDate    | Oui         | Date à laquelle la quantité et le prix unitaire sont valides.                    |
 
 **Exemple de requête :**
 
@@ -147,23 +157,28 @@ Permet d'enregistrer une nouvelle détention de parts d'un fonds d'investissemen
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `400 Bad Request` :
     *   Si les données fournies sont invalides (ex: `name` manquant, `quantity` négative).
     *   Si l'`accountId` fourni n'existe pas : `"Compte bancaire associé non trouvé: <accountId>"`
 *   `409 Conflict` : Si une détention avec le même `isinCode` existe déjà pour le `accountId` spécifié (ou en tant que titre générique si `accountId` est nul) : `"Un OPCVM avec l'ISIN '<isinCode>' existe déjà pour ce compte."` / `"Un OPCVM avec l'ISIN '<isinCode>' existe déjà en tant que titre générique."`
+</Callout>
 
 ### 2.2. Mettre à Jour une Ligne de Détention d'OPCVM
 
+<Card title="PUT /api/v1/opcvm-holdings/{holdingId}" href="/api/v1/opcvm-holdings/{holdingId}" method="PUT">
 Permet de modifier les informations d'une détention d'OPCVM existante.
 
-*   **Endpoint :** `PUT /api/v1/opcvm-holdings/{holdingId}`
-*   **Rôles requis :** ADMIN, DATA_PROCESSOR
-*   **Paramètre de chemin :**
+**Rôles requis :** ADMIN, DATA_PROCESSOR
+</Card>
 
-    | Paramètre   | Type | Description                                     |
-        |-------------|------|-------------------------------------------------|
-    | `holdingId` | UUID | ID de la détention d'OPCVM à mettre à jour.     |
-*   **Corps de la requête :** `OpcvmHoldingDto` (les champs à mettre à jour)
+**Paramètre de chemin :**
+
+| Paramètre   | Type | Description                                     |
+|-------------|------|-------------------------------------------------|
+| `holdingId` | UUID | ID de la détention d'OPCVM à mettre à jour.     |
+
+**Corps de la requête :** `OpcvmHoldingDto` (les champs à mettre à jour)
 
 **Exemple de requête (mise à jour de la quantité et du prix unitaire) :**
 
@@ -199,23 +214,27 @@ Permet de modifier les informations d'une détention d'OPCVM existante.
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `400 Bad Request` :
     *   Si les données fournies sont invalides.
     *   Si le `accountId` (nouveau ou modifié) fourni n'existe pas : `"Nouveau compte bancaire associé non trouvé: <accountId>"`
 *   `404 Not Found` : Si aucune détention d'OPCVM ne correspond à l'`holdingId` fourni.
 *   `409 Conflict` : Si la modification de `isinCode` et/ou `accountId` crée un doublon.
+</Callout>
 
 ### 2.3. Supprimer une Ligne de Détention d'OPCVM
 
+<Card title="DELETE /api/v1/opcvm-holdings/{holdingId}" href="/api/v1/opcvm-holdings/{holdingId}" method="DELETE">
 Permet de supprimer une ligne de détention d'OPCVM.
 
-*   **Endpoint :** `DELETE /api/v1/opcvm-holdings/{holdingId}`
-*   **Rôles requis :** ADMIN
-*   **Paramètre de chemin :**
+**Rôles requis :** ADMIN
+</Card>
 
-    | Paramètre   | Type | Description                                    |
-        |-------------|------|------------------------------------------------|
-    | `holdingId` | UUID | ID de la détention d'OPCVM à supprimer.        |
+**Paramètre de chemin :**
+
+| Paramètre   | Type | Description                                    |
+|-------------|------|------------------------------------------------|
+| `holdingId` | UUID | ID de la détention d'OPCVM à supprimer.        |
 
 **Exemple de requête :**
 
@@ -227,8 +246,12 @@ Permet de supprimer une ligne de détention d'OPCVM.
 
 **Réponses d'erreur possibles :**
 
+<Callout type="error">
 *   `404 Not Found` : Si aucune détention d'OPCVM ne correspond à l'`holdingId` fourni.
+</Callout>
 
 ## 3. Données Historiques
 
+<Callout type="note">
 La structure actuelle se concentre sur la dernière valorisation connue d'une détention (`valuationDate`, `quantity`, `unitPrice`). Il n'y a pas de fonctionnalité explicite pour récupérer l'historique des valorisations d'une même ligne de détention d'OPCVM (par exemple, l'évolution de la quantité ou du prix d'un fonds spécifique au fil du temps). Chaque mise à jour écrase les valeurs précédentes de quantité et de prix pour la `valuationDate` donnée. Pour un suivi historique, il faudrait enregistrer des "snapshots" de valorisation à différentes dates, ce qui n'est pas géré par le modèle actuel.
+</Callout>
