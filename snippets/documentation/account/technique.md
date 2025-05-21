@@ -1,0 +1,271 @@
+# Documentation Technique - Module de Comptes Bancaires
+
+Ce document décrit l'architecture technique et les composants du module de gestion des comptes bancaires.
+
+## 1. Vue d'Ensemble de l'Architecture
+
+Le module `account` suit une architecture en couches classique, typique des applications Spring Boot :
+
+*   **Contrôleurs (Controllers) :** Exposition des API REST pour interagir avec le module.
+*   **Services :** Logique métier et orchestration des opérations.
+*   **Mappers :** Transformation des données entre les DTOs (Data Transfer Objects) et les Entités.
+*   **Entités (Entities) :** Représentation des objets persistants en base de données (JPA).
+*   **DTOs (Data Transfer Objects) :** Objets de transfert de données utilisés pour les échanges via l'API.
+*   **Référentiels (Repositories) :** Interface avec la base de données pour les opérations CRUD et les requêtes spécifiques (Spring Data JPA).
+
+## 2. Composants Détaillés
+
+### 2.1. Contrôleurs (Package : `com.cochepa.erp.banking.account.controller`)
+
+#### 2.1.1. `AccountController`
+
+*   **Rôle :** Gère les requêtes HTTP relatives aux comptes bancaires (CRUD).
+*   **Endpoints Principaux :**
+    *   `GET /api/v1/accounts` : Liste tous les comptes, avec filtres optionnels (`bankId`, `organizationId`).
+        *   Autorisation : `ADMIN, USER, DATA_PROCESSOR, VIEWER`.
+        *   Appelle `AccountService.getAllAccounts()`, `AccountService.getAccountsByBankId()`, ou `AccountService.getAccountsByOrganizationId()`.
+    *   `GET /api/v1/accounts/{accountId}` : Récupère un compte par son ID.
+        *   Autorisation : `ADMIN, USER, DATA_PROCESSOR, VIEWER`.
+        *   Appelle `AccountService.getAccountById()`.
+    *   `POST /api/v1/accounts` : Crée un nouveau compte.
+        *   Autorisation : `ADMIN, DATA_PROCESSOR`.
+        *   Appelle `AccountService.createAccount()`.
+        *   Validation : `@Valid` sur `AccountDto`. Gestion des exceptions `EntityNotFoundException`, `IllegalStateException` (ex: compte dupliqué) via `ResponseStatusException`.
+    *   `PUT /api/v1/accounts/{accountId}` : Met à jour un compte existant.
+        *   Autorisation : `ADMIN, DATA_PROCESSOR`.
+        *   Appelle `AccountService.updateAccount()`.
+        *   Validation : `@Valid` sur `AccountDto`. Gestion des exceptions.
+    *   `DELETE /api/v1/accounts/{accountId}` : Supprime un compte.
+        *   Autorisation : `ADMIN`.
+        *   Appelle `AccountService.deleteAccount()`.
+
+#### 2.1.2. `AccountStatementController`
+
+*   **Rôle :** Gère les requêtes HTTP relatives aux relevés (transactions) d'un compte bancaire.
+*   **Endpoints Principaux :**
+    *   `GET /api/v1/accounts/{accountId}/statements` : Liste les relevés d'un compte avec pagination et filtre optionnel par statut.
+        *   Autorisation : `ADMIN, DATA_PROCESSOR, USER, VIEWER`.
+        *   Appelle `AccountStatementService.getPendingStatements()` ou `AccountStatementService.getAllStatementsForAccount()`.
+        *   Pagination : Utilise `@PageableDefault`.
+    *   `PUT /api/v1/accounts/{accountId}/statements/{statementId}` : Met à jour les détails d'un relevé spécifique (avant confirmation).
+        *   Autorisation : `ADMIN, DATA_PROCESSOR`.
+        *   Appelle `AccountStatementService.updateSingleStatementDetails()`.
+        *   Validation : `@Valid` sur `AccountStatementDto`. Gestion des exceptions `EntityNotFoundException`, `IllegalStateException`.
+    *   `POST /api/v1/accounts/{accountId}/statements/batch-review` : Met à jour le statut de plusieurs relevés en lot.
+        *   Autorisation : `ADMIN, DATA_PROCESSOR`.
+        *   Appelle `AccountStatementService.updateStatementsStatus()`.
+        *   Validation : `@Valid` sur `StatementReviewUpdateRequestDto`. Gestion des exceptions.
+
+### 2.2. Services (Package : `com.cochepa.erp.banking.account.service`)
+
+#### 2.2.1. `AccountService`
+
+*   **Rôle :** Implémente la logique métier pour la gestion des comptes bancaires.
+*   **Méthodes Clés :**
+    *   `getAllAccounts()`, `getAccountById()`, `getAccountsByBankId()`, `getAccountsByOrganizationId()`: Récupération des comptes.
+        *   Utilise `AccountRepository` et `AccountMapper`.
+        *   Transactions en lecture seule (`@Transactional(readOnly = true)`).
+    *   `createAccount(AccountDto accountDto)` : Crée un compte.
+        *   Valide l'existence de la banque (`BankRepository`).
+        *   Vérifie l'unicité du numéro de compte pour la banque (`AccountRepository.findByBankIdAndAccountNumber()`).
+        *   Persiste l'entité `AccountEntity` via `AccountRepository.save()`.
+    *   `updateAccount(UUID accountId, AccountDto accountDto)` : Met à jour un compte.
+        *   Récupère l'entité existante.
+        *   Gère la mise à jour de la banque associée si `bankId` change.
+        *   Vérifie l'unicité si le numéro de compte ou la banque change.
+        *   Utilise `AccountMapper.updateEntityFromDto()` pour appliquer les modifications.
+        *   Persiste les changements.
+    *   `deleteAccount(UUID accountId)` : Supprime un compte.
+        *   Vérifie l'existence avant suppression.
+        *   (Note : des vérifications de dépendances supplémentaires pourraient être ajoutées ici, par exemple, ne pas supprimer si des relevés existent).
+
+#### 2.2.2. `AccountStatementService`
+
+*   **Rôle :** Implémente la logique métier pour la gestion des relevés de compte.
+*   **Méthodes Clés :**
+    *   `getPendingStatements(UUID accountId, String internalStatus, Pageable pageable)` : Récupère les relevés avec un statut spécifique (par défaut `PENDING_REVIEW`).
+    *   `getAllStatementsForAccount(UUID accountId, Pageable pageable)` : Récupère tous les relevés d'un compte avec pagination.
+        *   Utilise `AccountStatementRepository` et `AccountStatementMapper`.
+    *   `updateStatementsStatus(StatementReviewUpdateRequestDto reviewRequest)` : Met à jour le statut de plusieurs relevés.
+        *   Récupère l'utilisateur courant (`getCurrentUser()`) pour tracer qui a effectué l'action.
+        *   Valide le nouveau statut.
+        *   Pour chaque relevé :
+            *   Met à jour le statut, les notes, `confirmedByUser`, `confirmedAt`.
+            *   Si le nouveau statut est `CONFIRMED` (et l'ancien ne l'était pas), appelle `updateAccountBalance()` pour ajuster le solde du compte.
+            *   Si le statut passe de `CONFIRMED` à un autre (annulation), appelle `updateAccountBalance()` avec `isReversal = true`.
+        *   Sauvegarde les entités modifiées.
+    *   `updateSingleStatementDetails(UUID statementId, AccountStatementDto statementDto)` : Met à jour les champs d'un relevé non confirmé.
+        *   Vérifie que le relevé n'est pas déjà `CONFIRMED`.
+        *   Met à jour les champs modifiables (description, dates, montant, type, etc.).
+    *   `updateAccountBalance(AccountEntity account, AccountStatementEntity statement, boolean isReversal)` : Méthode privée pour mettre à jour le `currentBalance` de `AccountEntity` en fonction du montant et du type d'opération du relevé. Gère l'inversion si `isReversal` est vrai.
+        *   Utilise `AccountRepository.save()` pour persister le solde mis à jour.
+    *   `getCurrentUser()` : Méthode privée pour obtenir l'entité `UserEntity` de l'utilisateur authentifié via `SecurityContextHolder` et `UserRepository`.
+
+#### 2.2.3. `AccountStatementStorageService`
+
+*   **Rôle :** Gère le stockage des relevés de compte parsés (provenant typiquement d'un module d'import de fichiers).
+*   **Méthodes Clés :**
+    *   `storeParsedStatement(AccountEntity account, ParsedStatementDataDto parsedData, String originalFilename, UUID templateId, UUID importJobId)` :
+        *   Prend en entrée les données parsées (`ParsedStatementDataDto`) d'un fichier de relevé.
+        *   Pour chaque transaction (`ParsedTransactionDto`) :
+            *   Crée une nouvelle `AccountStatementEntity`.
+            *   Assigne les informations : compte, dates, description, montant (en déterminant DEBIT/CREDIT), devise (depuis le compte), référence externe.
+            *   Définit `internalStatus` à `PENDING_REVIEW`.
+            *   Assigne l'`importJobId`.
+        *   Sauvegarde toutes les nouvelles entités `AccountStatementEntity` en lot (`AccountStatementRepository.saveAll()`).
+        *   Met à jour `lastStatementImportDate` sur l'`AccountEntity`.
+        *   Logue les erreurs de parsing si présentes.
+
+### 2.3. Entités (Package : `com.cochepa.erp.banking.account.entity`)
+
+#### 2.3.1. `AccountEntity`
+
+*   **Rôle :** Représente un compte bancaire dans la base de données.
+*   **Table :** `accounts`
+*   **Attributs Principaux :**
+    *   `id` (UUID, PK)
+    *   `bank` (ManyToOne vers `BankEntity`) : La banque à laquelle le compte est rattaché.
+    *   `accountNumber` (String) : Numéro de compte (unique par banque).
+    *   `iban` (String)
+    *   `currency` (String, 3 caractères)
+    *   `openingDate` (LocalDate)
+    *   `initialBalance` (BigDecimal) : Solde initial à l'ouverture.
+    *   `currentBalance` (BigDecimal) : Solde actuel, mis à jour par les relevés confirmés.
+    *   `status` (String) : Statut du compte (ex: OUVERT, ACTIF, CLOTURE).
+    *   `friendlyName` (String) : Nom convivial du compte.
+    *   `lastStatementImportDate` (OffsetDateTime) : Date du dernier import de relevé.
+    *   `createdAt` (OffsetDateTime, @CreatedDate) : Géré par JPA Auditing.
+    *   `updatedAt` (OffsetDateTime, @LastModifiedDate) : Géré par JPA Auditing.
+*   **Contraintes :** `UniqueConstraint` sur `bank_id` et `account_number`.
+
+#### 2.3.2. `AccountStatementEntity`
+
+*   **Rôle :** Représente une ligne de relevé (une transaction) dans la base de données.
+*   **Table :** `account_statements`
+*   **Attributs Principaux :**
+    *   `id` (UUID, PK)
+    *   `account` (ManyToOne vers `AccountEntity`) : Le compte auquel le relevé appartient.
+    *   `importJobId` (UUID) : ID du job d'import qui a créé ce relevé.
+    *   `operationDate` (LocalDate) : Date de l'opération.
+    *   `valueDate` (LocalDate) : Date de valeur.
+    *   `description` (String, TEXT)
+    *   `amount` (BigDecimal) : Montant de la transaction (toujours positif).
+    *   `currency` (String, 3 caractères)
+    *   `operationType` (String) : Type d'opération (ex: `CREDIT`, `DEBIT`).
+    *   `balanceAfter` (BigDecimal) : Solde après cette transaction (tel que fourni par la banque, optionnel).
+    *   `externalReference` (String, TEXT) : Référence externe de la transaction.
+    *   `internalStatus` (String) : Statut interne du relevé (ex: `PENDING_REVIEW`, `REVIEWED`, `CONFIRMED`, `REJECTED`).
+    *   `confirmedByUser` (ManyToOne vers `UserEntity`) : Utilisateur ayant confirmé/rejeté le relevé.
+    *   `confirmedAt` (OffsetDateTime) : Date et heure de la confirmation/rejet.
+    *   `notes` (String, TEXT, @Lob) : Notes ajoutées lors de la révision.
+    *   `createdAt` (LocalDateTime, @CreatedDate) : Géré par JPA Auditing.
+    *   `updatedAt` (LocalDateTime, @LastModifiedDate) : Géré par JPA Auditing.
+
+### 2.4. DTOs (Package : `com.cochepa.erp.banking.account.dto`)
+
+#### 2.4.1. `AccountDto`
+
+*   **Rôle :** Objet de transfert pour les informations de compte. Utilisé pour les requêtes et réponses API.
+*   **Champs :** Correspondent globalement à `AccountEntity`, inclut `bankId` et un `BankDto` imbriqué pour l'affichage.
+*   **Validation :** Utilise les annotations de `jakarta.validation.constraints` (ex: `@NotNull`, `@NotBlank`, `@Size`).
+
+#### 2.4.2. `AccountStatementDto`
+
+*   **Rôle :** Objet de transfert pour les informations de relevé de compte.
+*   **Champs :** Correspond globalement à `AccountStatementEntity`, inclut `accountId`, `accountNumber`, `bankName`, `confirmedByUsername` pour faciliter l'affichage.
+
+#### 2.4.3. `StatementReviewUpdateRequestDto`
+
+*   **Rôle :** Objet de transfert pour la mise à jour en masse du statut des relevés.
+*   **Champs :**
+    *   `statementIds` (List<UUID>) : Liste des ID des relevés à mettre à jour.
+    *   `newStatus` (String) : Nouveau statut à appliquer.
+    *   `notes` (String, optionnel) : Notes pour l'opération de mise à jour.
+*   **Validation :** `@NotNull` pour `statementIds`, `@NotBlank` pour `newStatus`.
+
+### 2.5. Mappers (Package : `com.cochepa.erp.banking.account.mapper`)
+
+Utilisent MapStruct pour la conversion entre Entités et DTOs.
+
+#### 2.5.1. `AccountMapper`
+
+*   **Rôle :** Convertit `AccountEntity` en `AccountDto` et vice-versa.
+*   **Dépendances :** `BankMapper` (pour le `BankDto` imbriqué), `DateTimeMapper` (pour la conversion de `OffsetDateTime`).
+*   **Méthodes :**
+    *   `toEntity(AccountDto dto)` : Mappe DTO vers Entité. Ignore certains champs comme `bank` (géré par le service), `createdAt`, `updatedAt`.
+    *   `toDto(AccountEntity entity)` : Mappe Entité vers DTO. Mappe `bank.id` vers `bankId`.
+    *   `updateEntityFromDto(AccountDto dto, @MappingTarget AccountEntity entity)` : Met à jour une entité existante à partir d'un DTO. Ignore `id`, `bank`, `createdAt`, `updatedAt`.
+
+#### 2.5.2. `AccountStatementMapper`
+
+*   **Rôle :** Convertit `AccountStatementEntity` en `AccountStatementDto`.
+*   **Dépendances :** `DateTimeMapper`.
+*   **Méthodes :**
+    *   `toDto(AccountStatementEntity entity)` : Mappe Entité vers DTO.
+        *   Mappe `account.id` vers `accountId`.
+        *   Mappe `account.accountNumber` vers `accountNumber`.
+        *   Mappe `account.bank.name` vers `bankName`.
+        *   Mappe `confirmedByUser.id` vers `confirmedByUserId`.
+        *   Mappe `confirmedByUser.email` vers `confirmedByUsername`.
+
+### 2.6. Référentiels (Package : `com.cochepa.erp.banking.account.repository`)
+
+Interfaces Spring Data JPA qui fournissent les méthodes d'accès aux données.
+
+#### 2.6.1. `AccountRepository`
+
+*   **Interface :** `JpaRepository<AccountEntity, UUID>`
+*   **Méthodes Clés :**
+    *   `findByBankIdAndAccountNumber(UUID bankId, String accountNumber)` : Trouve un compte par ID de banque et numéro de compte (utilisé pour la vérification d'unicité).
+    *   `findByBankId(UUID bankId)` : Liste les comptes pour un ID de banque donné.
+    *   `findByBankOrganizationId(UUID organizationId)` : Liste les comptes appartenant à une organisation (via la banque).
+    *   `findById(UUID uuid)` : (Hérité) Trouve un compte par son ID.
+
+#### 2.6.2. `AccountStatementRepository`
+
+*   **Interface :** `JpaRepository<AccountStatementEntity, UUID>`, `JpaSpecificationExecutor<AccountStatementEntity>` (pour les requêtes dynamiques/spécifications).
+*   **Méthodes Clés :**
+    *   `findByAccountIdOrderByOperationDateDesc(UUID accountId)` : (Non utilisé directement par les services actuels mais pourrait être utile).
+    *   `findByAccountIdAndInternalStatus(UUID accountId, String internalStatus, Pageable pageable)` : Récupère les relevés d'un compte avec un statut spécifique, paginés.
+    *   `findByAccountIdAndInternalStatus(UUID accountId, String internalStatus)` : (Non paginé, potentiellement pour des vérifications internes).
+    *   La pagination et le tri pour `getAllStatementsForAccount` dans `AccountStatementService` sont gérés via les capacités de `JpaSpecificationExecutor` ou les méthodes dérivées de `JpaRepository` avec un `Pageable`.
+
+## 3. Interactions entre Composants (Exemples de Flux)
+
+### 3.1. Création d'un Compte
+
+1.  `Client` -> `POST /api/v1/accounts` avec `AccountDto`
+2.  `AccountController.createAccount(accountDto)`
+3.  `AccountService.createAccount(accountDto)`
+    *   `BankRepository.findById(bankId)` (pour valider la banque)
+    *   `AccountRepository.findByBankIdAndAccountNumber(...)` (pour vérifier l'unicité)
+    *   `AccountMapper.toEntity(accountDto)`
+    *   `AccountRepository.save(accountEntity)`
+    *   `AccountMapper.toDto(savedAccountEntity)`
+4.  `AccountController` retourne `ResponseEntity<AccountDto>`
+
+### 3.2. Confirmation de Relevés
+
+1.  `Client` -> `POST /api/v1/accounts/{accountId}/statements/batch-review` avec `StatementReviewUpdateRequestDto`
+2.  `AccountStatementController.reviewStatements(accountId, reviewRequest)`
+3.  `AccountStatementService.updateStatementsStatus(reviewRequest)`
+    *   `AccountStatementService.getCurrentUser()`
+        *   `UserRepository.findByEmail(...)`
+    *   Pour chaque `statementId` dans `reviewRequest.statementIds()`:
+        *   `AccountStatementRepository.findById(statementId)`
+        *   (Logique de mise à jour du statut)
+        *   Si confirmation/annulation de confirmation: `AccountStatementService.updateAccountBalance(account, statement, isReversal)`
+            *   `AccountRepository.save(account)` (pour mettre à jour le solde)
+        *   `AccountStatementRepository.save(statement)`
+    *   `AccountStatementMapper.toDto(...)` pour chaque entité mise à jour
+4.  `AccountStatementController` retourne `ResponseEntity<List<AccountStatementDto>>`
+
+## 4. Gestion des Dépendances et Configuration
+
+*   **Spring Boot Starters :** `spring-boot-starter-data-jpa`, `spring-boot-starter-web`, `spring-boot-starter-security`, `spring-boot-starter-validation`.
+*   **MapStruct :** Pour la génération des mappers.
+*   **Base de données :** PostgreSQL (basé sur les types de données comme `TEXT`, `TIMESTAMP WITH TIME ZONE`).
+*   **Audit JPA :** `@EnableJpaAuditing` avec `AuditingEntityListener` pour les champs `createdAt`, `updatedAt`.
+*   **Sécurité :** Spring Security avec annotations `@PreAuthorize` au niveau des méthodes des contrôleurs.
+
+Cette documentation technique fournit une vue d'ensemble des principaux composants et de leur fonctionnement au sein du module de comptes bancaires.

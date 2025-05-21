@@ -1,0 +1,320 @@
+# Documentation Fonctionnelle - Module Structure Organisationnelle
+
+Ce document détaille les fonctionnalités relatives à la gestion de la structure organisationnelle, y compris les informations sur l'entreprise elle-même et les banques avec lesquelles elle interagit.
+
+## 1. Gestion de l'Organisation Principale
+
+Le système est conçu pour gérer une organisation principale (l'entreprise utilisant l'ERP).
+
+### 1.1. Consulter les Informations de l'Organisation Principale
+
+Permet de récupérer les informations détaillées de l'organisation principale enregistrée dans le système.
+
+*   **Endpoint :** `GET /api/v1/organization`
+*   **Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+
+**Exemple de réponse (Succès - 200 OK) :**
+
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef", // ID unique de l'organisation
+  "name": "Nom de Mon Entreprise SAS",
+  "registrationNumber": "123456789 RCS PARIS",
+  "vatNumber": "FR123456789",
+  "defaultCurrency": "EUR",
+  "primaryAddress": {
+    "id": "b2c3d4e5-f6g7-8901-2345-678901cdef",
+    "line1": "10 Rue de la Paix",
+    "line2": "Étage 5, Bureau 501",
+    "city": "Paris",
+    "stateProvince": "Île-de-France",
+    "postalCode": "75002",
+    "country": "France"
+  }
+}
+```
+
+**Réponses d'erreur possibles :**
+
+*   `404 Not Found` : Si aucune organisation n'est configurée dans le système.
+
+### 1.2. Créer l'Organisation Principale
+
+Permet d'enregistrer les informations de l'organisation principale si elle n'existe pas encore. Une seule organisation principale est généralement gérée.
+
+*   **Endpoint :** `POST /api/v1/organization`
+*   **Rôles requis :** ADMIN
+*   **Corps de la requête :** `OrganizationDto` (sans `id`)
+
+    | Champ                | Type         | Obligatoire | Description                                                                                                |
+        |----------------------|--------------|-------------|------------------------------------------------------------------------------------------------------------|
+    | `name`               | String       | Oui         | Nom officiel de l'organisation (max 255 caractères).                                                       |
+    | `registrationNumber` | String       | Non         | Numéro d'enregistrement légal (ex: SIREN/SIRET, RCS) (max 100 caractères).                                   |
+    | `vatNumber`          | String       | Non         | Numéro de TVA intracommunautaire (max 50 caractères).                                                        |
+    | `defaultCurrency`    | String       | Non         | Code ISO de la devise par défaut pour l'organisation (3 lettres, ex: EUR).                                   |
+    | `primaryAddress`     | AddressDto   | Non         | Adresse principale de l'organisation. Si l'ID de l'adresse est omis, une nouvelle adresse sera créée.        |
+
+**Exemple de requête :**
+
+```json
+{
+  "name": "Ma Nouvelle Entreprise SA",
+  "registrationNumber": "987654321 RCS LYON",
+  "vatNumber": "FR987654321",
+  "defaultCurrency": "EUR",
+  "primaryAddress": {
+    "line1": "5 Avenue des Lumières",
+    "city": "Lyon",
+    "postalCode": "69000",
+    "country": "France"
+  }
+}
+```
+
+**Exemple de réponse (Succès - 201 Created) :**
+
+Similaire à la réponse du `GET`, avec l'ID généré pour la nouvelle organisation et son adresse.
+
+**Réponses d'erreur possibles :**
+
+*   `400 Bad Request` : Si les données fournies sont invalides (ex: `name` manquant) ou si un `id` est fourni dans la requête.
+*   `409 Conflict` : Si une organisation principale existe déjà.
+
+### 1.3. Mettre à Jour les Informations de l'Organisation Principale
+
+Permet de modifier les informations de l'organisation principale existante.
+
+*   **Endpoint :** `PUT /api/v1/organization`
+*   **Rôles requis :** ADMIN
+*   **Corps de la requête :** `OrganizationDto` (l'`id` de l'organisation n'est pas requis dans le corps car il s'agit de l'organisation principale unique, mais si l'adresse a un `id`, elle sera mise à jour, sinon une nouvelle adresse sera créée et liée).
+
+**Exemple de requête (Mise à jour de la devise par défaut et de l'adresse) :**
+
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef", // ID de l'organisation à mettre à jour
+  "name": "Nom de Mon Entreprise SAS",
+  "registrationNumber": "123456789 RCS PARIS",
+  "vatNumber": "FR123456789",
+  "defaultCurrency": "USD", // Changement de devise
+  "primaryAddress": {
+    "id": "b2c3d4e5-f6g7-8901-2345-678901cdef", // ID de l'adresse existante à mettre à jour
+    "line1": "12 Rue de la Paix", // Changement d'adresse
+    "line2": "",
+    "city": "Paris",
+    "stateProvince": "Île-de-France",
+    "postalCode": "75002",
+    "country": "France"
+  }
+}
+```
+
+**Exemple de réponse (Succès - 200 OK ou 201 Created si l'organisation a été créée par le PUT) :**
+
+Retourne l'`OrganizationDto` mis à jour.
+
+**Réponses d'erreur possibles :**
+
+*   `400 Bad Request` : Si les données fournies sont invalides.
+*   `404 Not Found` : Si l'organisation principale n'existe pas et que le PUT ne la crée pas (selon la logique du service, le PUT actuel peut créer si l'organisation n'existe pas).
+
+## 2. Gestion des Banques
+
+Permet de gérer les informations des banques partenaires de l'organisation.
+
+### 2.1. Lister Toutes les Banques
+
+Récupère une liste de toutes les banques enregistrées et associées à l'organisation principale.
+
+*   **Endpoint :** `GET /api/v1/banks`
+*   **Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+
+**Exemple de réponse (Succès - 200 OK) :**
+
+```json
+[
+  {
+    "id": "c1d2e3f4-g5h6-7890-1234-567890abcdef",
+    "organizationId": "a1b2c3d4-e5f6-7890-1234-567890abcdef", // ID de l'organisation principale
+    "name": "Banque Crédit Populaire",
+    "swiftCode": "BCPOFRPPXXX",
+    "website": "https://www.creditpopulaire.fr",
+    "primaryAddress": {
+      "id": "d2e3f4g5-h6i7-8901-2345-678901cdef",
+      "line1": "100 Boulevard des Banquiers",
+      "city": "Paris",
+      "postalCode": "75009",
+      "country": "France"
+    },
+    "contacts": [
+      {
+        "id": "e3f4g5h6-i7j8-9012-3456-789012cdef",
+        "firstName": "Sophie",
+        "lastName": "Martin",
+        "email": "sophie.martin@creditpopulaire.fr",
+        "phone": "0123456789",
+        "role": "Conseillère Pro"
+      }
+    ]
+  }
+  // ... autres banques
+]
+```
+
+### 2.2. Obtenir une Banque par son ID
+
+Récupère les détails d'une banque spécifique.
+
+*   **Endpoint :** `GET /api/v1/banks/{bankId}`
+*   **Rôles requis :** ADMIN, USER, DATA_PROCESSOR, VIEWER
+*   **Paramètre de chemin :**
+
+    | Paramètre | Type | Description                   |
+        |-----------|------|-------------------------------|
+    | `bankId`  | UUID | ID unique de la banque.       |
+
+**Exemple de réponse (Succès - 200 OK) :**
+
+Format identique à un élément de la liste ci-dessus.
+
+**Réponses d'erreur possibles :**
+
+*   `404 Not Found` : Si la banque n'est pas trouvée.
+
+### 2.3. Créer une Nouvelle Banque
+
+Enregistre une nouvelle banque associée à l'organisation principale.
+
+*   **Endpoint :** `POST /api/v1/banks`
+*   **Rôles requis :** ADMIN, DATA_PROCESSOR
+*   **Corps de la requête :** `BankDto` (sans `id` pour la banque, l'adresse ou les contacts s'ils sont nouveaux)
+
+    | Champ            | Type           | Obligatoire | Description                                                                                             |
+        |------------------|----------------|-------------|---------------------------------------------------------------------------------------------------------|
+    | `organizationId` | UUID           | Oui         | ID de l'organisation principale à laquelle cette banque est rattachée.                                      |
+    | `name`           | String         | Oui         | Nom de la banque (max 255 caractères).                                                                    |
+    | `swiftCode`      | String         | Non         | Code SWIFT/BIC de la banque (max 11 caractères).                                                          |
+    | `website`        | String         | Non         | Site web de la banque (max 2000 caractères).                                                              |
+    | `primaryAddress` | AddressDto     | Non         | Adresse principale de la banque. Si `id` est omis, une nouvelle adresse est créée.                        |
+    | `contacts`       | Set<ContactDto>| Non         | Ensemble de contacts pour cette banque. Si `id` est omis pour un contact, un nouveau contact est créé (ou trouvé par email). |
+
+**Exemple de requête :**
+
+```json
+{
+  "organizationId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "name": "Banque d'Affaires Internationales",
+  "swiftCode": "BAINFRPPXXX",
+  "website": "https://www.bai.com",
+  "primaryAddress": {
+    "line1": "25 Rue du Commerce",
+    "city": "Lyon",
+    "postalCode": "69002",
+    "country": "France"
+  },
+  "contacts": [
+    {
+      "firstName": "Pierre",
+      "lastName": "Dubois",
+      "email": "pierre.dubois@bai.com",
+      "phone": "0456789123",
+      "role": "Chargé d'affaires"
+    }
+  ]
+}
+```
+
+**Exemple de réponse (Succès - 201 Created) :**
+
+Retourne le `BankDto` créé, avec les ID générés pour la banque, son adresse et ses contacts.
+
+**Réponses d'erreur possibles :**
+
+*   `400 Bad Request` : Si les données sont invalides (ex: `name` manquant, `organizationId` non valide ou non trouvé).
+*   `400 Bad Request` (via `EntityNotFoundException`) : Si `organizationId` ou un `contactId` (si fourni) n'est pas trouvé.
+
+### 2.4. Mettre à Jour une Banque
+
+Modifie les informations d'une banque existante.
+
+*   **Endpoint :** `PUT /api/v1/banks/{bankId}`
+*   **Rôles requis :** ADMIN, DATA_PROCESSOR
+*   **Corps de la requête :** `BankDto` (avec les champs à mettre à jour). L'`organizationId` doit être fourni et correspondre à l'organisation existante ou à une nouvelle si la banque change d'organisation.
+
+**Exemple de requête (Mise à jour du site web et ajout d'un contact) :**
+
+`PUT /api/v1/banks/c1d2e3f4-g5h6-7890-1234-567890abcdef`
+
+```json
+{
+  "organizationId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "name": "Banque Crédit Populaire",
+  "swiftCode": "BCPOFRPPXXX",
+  "website": "https://www.credit-populaire.fr", // Site web mis à jour
+  "primaryAddress": { // L'adresse peut être mise à jour
+    "id": "d2e3f4g5-h6i7-8901-2345-678901cdef",
+    "line1": "101 Boulevard des Banquiers",
+    "city": "Paris",
+    "postalCode": "75009",
+    "country": "France"
+  },
+  "contacts": [ // La liste des contacts peut être modifiée
+    {
+      "id": "e3f4g5h6-i7j8-9012-3456-789012cdef", // Contact existant
+      "firstName": "Sophie",
+      "lastName": "Martin-Durand", // Nom mis à jour
+      "email": "sophie.martin-durand@creditpopulaire.fr",
+      "phone": "0123456789",
+      "role": "Conseillère Pro Senior"
+    },
+    { // Nouveau contact
+      "firstName": "Luc",
+      "lastName": "Moreau",
+      "email": "luc.moreau@creditpopulaire.fr",
+      "phone": "0198765432",
+      "role": "Analyste Financier"
+    }
+  ]
+}
+```
+
+**Exemple de réponse (Succès - 200 OK) :**
+
+Retourne le `BankDto` mis à jour.
+
+**Réponses d'erreur possibles :**
+
+*   `400 Bad Request` : Si les données sont invalides ou si `organizationId` ou `contactId` n'est pas trouvé.
+*   `404 Not Found` : Si la banque avec `bankId` n'est pas trouvée.
+
+### 2.5. Supprimer une Banque
+
+Supprime une banque du système.
+
+*   **Endpoint :** `DELETE /api/v1/banks/{bankId}`
+*   **Rôles requis :** ADMIN
+
+**Exemple de réponse (Succès - 204 No Content) :**
+
+(Aucun contenu)
+
+**Réponses d'erreur possibles :**
+
+*   `404 Not Found` : Si la banque n'est pas trouvée.
+*   (Potentiellement `409 Conflict` si la banque est liée à d'autres entités non supprimables, par exemple des comptes bancaires actifs - non géré explicitement par le code fourni mais une considération fonctionnelle).
+
+## 3. Gestion des Adresses et Contacts
+
+Les adresses et contacts sont principalement gérés à travers les entités auxquelles ils sont rattachés (Organisation, Banque).
+
+*   **Adresses (`AddressDto`) :**
+    *   Lors de la création ou de la mise à jour d'une organisation ou d'une banque, une `AddressDto` peut être fournie.
+    *   Si l'`id` de l'adresse est omis ou nul dans la requête DTO, une nouvelle `AddressEntity` est créée.
+    *   Si l'`id` est fourni, l'`AddressEntity` existante est mise à jour (si elle est trouvée).
+*   **Contacts (`ContactDto`) :**
+    *   Lors de la création ou de la mise à jour d'une banque, un ensemble de `ContactDto` peut être fourni.
+    *   Si l'`id` d'un contact est omis ou nul, le système tente de trouver un contact existant par email. S'il n'est pas trouvé, un nouveau `ContactEntity` est créé.
+    *   Si l'`id` est fourni, le `ContactEntity` existant est utilisé/mis à jour.
+    *   La liaison entre banques et contacts est de type Plusieurs-à-Plusieurs.
+
+Il n'y a pas d'endpoints dédiés pour gérer les adresses ou les contacts de manière isolée dans ce module ; leur gestion est intégrée aux opérations sur les organisations et les banques.

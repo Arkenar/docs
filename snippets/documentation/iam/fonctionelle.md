@@ -1,0 +1,122 @@
+# Documentation Fonctionnelle - Module IAM (Gestion des Identités et des Accès)
+
+Ce document détaille les fonctionnalités du module de Gestion des Identités et des Accès (IAM), qui couvre l'enregistrement des utilisateurs, l'authentification, et la gestion des autorisations au sein du système ERP Banking.
+
+## 1. Enregistrement (Inscription d'un Utilisateur)
+
+Permet à un nouvel utilisateur de créer un compte dans le système.
+
+*   **Endpoint :** `POST /api/v1/auth/register`
+*   **Rôles requis :** Aucun (public)
+
+**Format de la Requête :**
+
+L'utilisateur doit fournir ses informations personnelles, son email (qui servira d'identifiant), un mot de passe, et potentiellement une liste de rôles souhaités (bien que l'attribution finale des rôles puisse être gérée par un administrateur).
+
+| Champ       | Type          | Obligatoire | Description                                                                 |
+|-------------|---------------|-------------|-----------------------------------------------------------------------------|
+| `firstName` | String        | Non         | Prénom de l'utilisateur (max 100 caractères).                               |
+| `lastName`  | String        | Non         | Nom de famille de l'utilisateur (max 100 caractères).                       |
+| `email`     | String        | Oui         | Adresse email de l'utilisateur (doit être unique, max 255 caractères).      |
+| `password`  | String        | Oui         | Mot de passe (min 8 caractères).                                            |
+| `roles`     | List<String>  | Non         | Liste des rôles demandés (ex: `["USER"]`). Si omis, un rôle par défaut (ex: `USER`) est attribué. |
+
+**Exemple de requête :**
+
+```json
+{
+  "firstName": "Jean",
+  "lastName": "Dupont",
+  "email": "jean.dupont@example.com",
+  "password": "password123",
+  "roles": ["USER"]
+}
+```
+
+**Exemple de réponse (Succès - 201 Created) :**
+
+```
+Utilisateur enregistré avec succès! ID: a1b2c3d4-e5f6-7890-1234-567890abcdef
+```
+
+**Réponses d'erreur possibles :**
+
+*   `400 Bad Request` :
+    *   Si l'email est déjà utilisé : `"Erreur: L'email est déjà utilisé!"`
+    *   Si les données fournies sont invalides (ex: email mal formaté, mot de passe trop court) : Message d'erreur de validation standard.
+*   `500 Internal Server Error` : En cas d'erreur inattendue lors de l'enregistrement. `"Erreur lors de l'enregistrement: <message d'erreur technique>"`
+
+## 2. Authentification (Connexion)
+
+Permet à un utilisateur enregistré de se connecter au système en utilisant son email et son mot de passe. En cas de succès, un jeton JWT (JSON Web Token) est retourné, qui devra être utilisé pour authentifier les requêtes ultérieures.
+
+*   **Endpoint :** `POST /api/v1/auth/login`
+*   **Rôles requis :** Aucun (public)
+
+**Format de la Requête :**
+
+| Champ      | Type   | Obligatoire | Description                         |
+|------------|--------|-------------|-------------------------------------|
+| `email`    | String | Oui         | Email de l'utilisateur.             |
+| `password` | String | Oui         | Mot de passe de l'utilisateur.      |
+
+**Exemple de requête :**
+
+```json
+{
+  "email": "jean.dupont@example.com",
+  "password": "password123"
+}
+```
+
+**Exemple de réponse (Succès - 200 OK) :**
+
+Le système retourne un jeton JWT ainsi que des informations sur l'utilisateur.
+
+| Champ   | Type          | Description                                                                 |
+|---------|---------------|-----------------------------------------------------------------------------|
+| `token` | String        | Le jeton JWT à utiliser pour les requêtes authentifiées.                    |
+| `type`  | String        | Type de jeton, généralement "Bearer".                                       |
+| `id`    | UUID          | ID unique de l'utilisateur dans le système.                                 |
+| `email` | String        | Email de l'utilisateur.                                                     |
+| `roles` | List<String>  | Liste des rôles attribués à l'utilisateur (ex: `["ROLE_USER"]`).            |
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqZWFuLmR1cG9udEBleGFtcGxlLmNvbSIsImlhdCI6MTY3ODg4NjQwMCwiZXhwIjoxNjc4ODkwMDAwfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+  "type": "Bearer",
+  "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "email": "jean.dupont@example.com",
+  "roles": ["ROLE_USER"]
+}
+```
+
+**Réponses d'erreur possibles :**
+
+*   `401 Unauthorized` : Si les identifiants (email/mot de passe) sont incorrects : `"Identifiants invalides"`
+*   `500 Internal Server Error` : En cas d'erreur inattendue lors de la connexion. `"Erreur lors de la connexion: <message d'erreur technique>"`
+
+## 3. Gestion de l'Authentification et des Sessions
+
+L'authentification est basée sur des jetons JWT.
+1.  Lors d'une connexion réussie, le serveur génère un jeton JWT signé qui contient des informations sur l'utilisateur (comme son email) et une date d'expiration.
+2.  Ce jeton est renvoyé au client.
+3.  Pour toute requête ultérieure nécessitant une authentification, le client doit inclure ce jeton dans l'en-tête `Authorization` avec le préfixe `Bearer `.
+    *   Exemple : `Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...`
+4.  Le serveur valide le jeton (signature, expiration) pour chaque requête. Si le jeton est valide, l'utilisateur est considéré comme authentifié et la requête est traitée. Sinon, une erreur 401 (Non autorisé) est retournée.
+
+Ce mécanisme est "stateless", c'est-à-dire que le serveur ne stocke pas d'information de session pour l'utilisateur entre les requêtes. Toute l'information nécessaire à l'authentification est contenue dans le jeton.
+
+## 4. Rôles et Autorisations
+
+Le système utilise un concept de rôles pour gérer les autorisations. Un rôle définit un ensemble de permissions qu'un utilisateur peut avoir.
+*   Lors de l'enregistrement, un utilisateur se voit attribuer un ou plusieurs rôles (par exemple, "USER", "ADMIN", "DATA_PROCESSOR").
+*   Les rôles sont stockés dans le jeton JWT (ou du moins, l'information permettant de les récupérer l'est).
+*   Lorsqu'un utilisateur tente d'accéder à une fonctionnalité protégée, le système vérifie si les rôles de l'utilisateur lui donnent l'autorisation nécessaire. Par exemple, certaines actions de création ou de suppression de données peuvent être réservées aux utilisateurs ayant le rôle "ADMIN".
+
+La liste exacte des permissions associées à chaque rôle est définie au niveau technique (voir documentation technique), mais du point de vue fonctionnel, un utilisateur est limité dans ses actions en fonction des rôles qui lui sont assignés. Par exemple :
+*   Un `VIEWER` pourrait consulter des données mais pas les modifier.
+*   Un `DATA_PROCESSOR` pourrait créer et modifier certaines données spécifiques.
+*   Un `ADMIN` aurait des droits étendus sur le système.
+
+Les endpoints des autres modules (comptes, analytique, taux de change) spécifient les rôles requis pour y accéder. Si un utilisateur tente d'accéder à un endpoint sans avoir le rôle approprié, une erreur 403 (Interdit) ou 401 (Non autorisé) sera retournée.

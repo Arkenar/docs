@@ -1,0 +1,148 @@
+# Documentation Technique - Module d'Analytique Financière
+
+Ce document décrit l'architecture technique et les composants du module d'analytique financière.
+
+## 1. Vue d'Ensemble de l'Architecture
+
+Le module `analytics` est conçu pour fournir des capacités d'analyse et de reporting sur les données financières. Il interagit avec d'autres modules, notamment `account` (pour l'accès aux données des comptes) et `exchangerate` (pour la conversion de devises).
+
+L'architecture suit une structure standard :
+
+*   **Contrôleurs (Controllers) :** Gèrent les requêtes API REST pour les fonctionnalités d'analytique.
+*   **Services :** Contiennent la logique métier pour la génération des rapports et des analyses.
+*   **DTOs (Data Transfer Objects) :** Structures de données pour les requêtes et les réponses API, ainsi que pour les données de rapport.
+
+## 2. Composants Détaillés
+
+### 2.1. Contrôleur (Package : `com.cochepa.erp.banking.analytics.controller`)
+
+#### 2.1.1. `AnalyticsController`
+
+*   **Rôle :** Expose les endpoints API REST pour accéder aux fonctionnalités d'analytique.
+*   **Sécurité :** Toutes les méthodes sont protégées par `@PreAuthorize("hasAnyRole('ADMIN', 'USER', 'VIEWER', 'DATA_PROCESSOR')")`, indiquant un accès relativement large aux fonctionnalités d'analytique.
+*   **Endpoints :**
+    *   `GET /accounts/{accountId}/balance-history`
+        *   **Objectif :** Récupérer l'historique des soldes pour un compte spécifique.
+        *   **Paramètres :**
+            *   `accountId` (UUID) : ID du compte.
+            *   `fromDate` (LocalDate) : Date de début.
+            *   `toDate` (LocalDate) : Date de fin.
+            *   `granularity` (String, défaut: "daily") : Granularité (ex: "daily", "monthly").
+        *   **Appelle :** `AnalyticsService.getAccountBalanceHistory()`.
+        *   **Réponse :** `ResponseEntity<List<BalanceHistoryPointDto>>`.
+    *   `GET /cashflow`
+        *   **Objectif :** Générer un rapport de flux de trésorerie.
+        *   **Paramètres :**
+            *   `accountIds` (List<UUID>, optionnel) : Filtre par comptes.
+            *   `bankIds` (List<UUID>, optionnel) : Filtre par banques.
+            *   `fromDate` (LocalDate) : Date de début.
+            *   `toDate` (LocalDate) : Date de fin.
+            *   `groupByPeriod` (String, défaut: "monthly") : Regroupement périodique (ex: "monthly", "quarterly", "yearly").
+            *   `breakdownBy` (String, optionnel) : Ventilation (ex: "account", "bank").
+        *   **Appelle :** `AnalyticsService.getCashFlowReport()`.
+        *   **Réponse :** `ResponseEntity<CashFlowReportDto>`.
+    *   `GET /consolidated-balance`
+        *   **Objectif :** Obtenir le solde consolidé de tous les comptes dans une devise cible.
+        *   **Paramètres :**
+            *   `targetCurrency` (String) : Devise cible.
+            *   `date` (LocalDate, optionnel, défaut: date actuelle) : Date de consolidation.
+        *   **Appelle :** `AnalyticsService.getConsolidatedBalance()`.
+        *   **Réponse :** `ResponseEntity<ConsolidatedBalanceDto>`.
+
+### 2.2. Service (Package : `com.cochepa.erp.banking.analytics.service`)
+
+#### 2.2.1. `AnalyticsService`
+
+*   **Rôle :** Implémente la logique métier pour calculer et agréger les données analytiques.
+*   **Dépendances :**
+    *   `ExchangeRateService` : Pour obtenir les taux de change nécessaires à la consolidation des soldes.
+    *   `AccountRepository` : Pour accéder aux données des comptes (soldes, devises, etc.).
+*   **Méthodes Clés :**
+    *   `getAccountBalanceHistory(UUID accountId, LocalDate fromDate, LocalDate toDate, String granularity)`
+        *   **Logique Actuelle :** Placeholder. Retourne une liste vide.
+        *   **Logique Attendue (non implémentée) :** Devrait interroger les transactions confirmées (du module `account`) pour le compte spécifié entre `fromDate` et `toDate`. Calculerait le solde à `fromDate` puis appliquerait chronologiquement les transactions. La granularité déterminerait les points de données (ex: solde à la fin de chaque jour pour `daily`, solde à la fin de chaque mois pour `monthly`). Nécessiterait probablement des requêtes JPA/JPQL ou jOOQ complexes sur les entités `AccountStatementEntity`.
+        *   **Transactionnel :** `@Transactional(readOnly = true)`.
+    *   `getCashFlowReport(List<UUID> accountIds, List<UUID> bankIds, LocalDate fromDate, LocalDate toDate, String groupByPeriod, String breakdownBy)`
+        *   **Logique Actuelle :** Placeholder. Retourne un `CashFlowReportDto` avec des valeurs par défaut (ZERO).
+        *   **Logique Attendue (non implémentée) :** Devrait agréger les mouvements créditeurs (inflows) et débiteurs (outflows) des transactions confirmées pour les comptes/banques spécifiés sur la période. Le regroupement (`groupByPeriod`) et la ventilation (`breakdownBy`) ajouteraient des niveaux d'agrégation supplémentaires. Cela impliquerait des requêtes complexes pour sommer les montants des `AccountStatementEntity` en fonction de leur type (`CREDIT`/`DEBIT`) et des critères de filtrage/regroupement.
+        *   **Transactionnel :** `@Transactional(readOnly = true)`.
+    *   `getConsolidatedBalance(String targetCurrency, LocalDate date)`
+        *   **Logique Implémentée :**
+            1.  Récupère tous les comptes via `AccountRepository.findAll()`.
+            2.  Initialise `totalConsolidatedBalance` à zéro et une map `balancesInOriginal` pour stocker les soldes par devise d'origine.
+            3.  Pour chaque compte :
+                *   Récupère le `currentBalance` et la `currency`.
+                *   Ajoute le solde à `balancesInOriginal` pour sa devise.
+                *   Si la devise du compte est la `targetCurrency`, ajoute directement le solde à `totalConsolidatedBalance`.
+                *   Sinon, appelle `exchangeRateService.getExchangeRate(originalCurrency, targetCurrency, date)` pour obtenir le taux de change.
+                *   Si le taux est trouvé, convertit le solde et l'ajoute à `totalConsolidatedBalance`.
+                *   Si le taux n'est pas trouvé, logue un avertissement.
+            4.  Logue un avertissement général si certains taux manquaient.
+            5.  Arrondit `totalConsolidatedBalance` à 2 décimales.
+            6.  Retourne un `ConsolidatedBalanceDto`.
+        *   **Transactionnel :** `@Transactional(readOnly = true)`.
+
+### 2.3. DTOs (Package : `com.cochepa.erp.banking.analytics.dto`)
+
+#### 2.3.1. `BalanceHistoryPointDto`
+
+*   **Rôle :** Représente un point de données dans l'historique des soldes d'un compte.
+*   **Champs :**
+    *   `date` (LocalDate) : La date à laquelle le solde est enregistré.
+    *   `balance` (BigDecimal) : Le solde du compte à cette date.
+*   **Utilisation :** Utilisé comme type de retour pour `AnalyticsController.getAccountBalanceHistory()`.
+
+#### 2.3.2. `CashFlowReportDto`
+
+*   **Rôle :** Structure de données pour le rapport des flux de trésorerie.
+*   **Champs :**
+    *   `periodType` (String) : Type de période de regroupement (ex: "MONTHLY").
+    *   `period` (Object) : La période spécifique (ex: `YearMonth` pour mensuel, un entier pour l'année).
+    *   `totalInflows` (BigDecimal) : Total des entrées de fonds.
+    *   `totalOutflows` (BigDecimal) : Total des sorties de fonds.
+    *   `netChange` (BigDecimal) : Différence entre inflows et outflows.
+    *   `breakdown` (Map<String, CashFlowGroupDto>, optionnel) : Ventilation des flux par groupe (ex: par compte, par banque). La clé de la map est l'identifiant du groupe (ex: ID de compte).
+*   **DTO Interne :** `CashFlowGroupDto`
+    *   `groupId` (String) : ID du groupe (ex: ID de compte).
+    *   `groupName` (String) : Nom du groupe (ex: nom du compte).
+    *   `inflows` (BigDecimal) : Entrées pour ce groupe.
+    *   `outflows` (BigDecimal) : Sorties pour ce groupe.
+    *   `netChange` (BigDecimal) : Flux net pour ce groupe.
+*   **Utilisation :** Utilisé comme type de retour pour `AnalyticsController.getCashFlowReport()`.
+
+#### 2.3.3. `ConsolidatedBalanceDto`
+
+*   **Rôle :** Structure de données pour le rapport de solde consolidé.
+*   **Champs :**
+    *   `targetCurrency` (String) : Devise cible de la consolidation.
+    *   `totalBalanceInTargetCurrency` (BigDecimal) : Solde total converti dans la devise cible.
+    *   `asOfDate` (LocalDate) : Date à laquelle la consolidation et les taux de change sont effectifs.
+    *   `balancesInOriginalCurrency` (Map<String, BigDecimal>, optionnel) : Map des soldes totaux par devise d'origine avant conversion. La clé est le code de la devise.
+*   **Utilisation :** Utilisé comme type de retour pour `AnalyticsController.getConsolidatedBalance()`.
+
+## 3. Interactions et Flux de Données (Exemple : Solde Consolidé)
+
+1.  **Requête Client :** `GET /api/v1/analytics/consolidated-balance?targetCurrency=EUR&date=2023-10-27`
+2.  **`AnalyticsController.getConsolidatedBalance("EUR", "2023-10-27")`** est appelé.
+3.  Le contrôleur délègue à **`AnalyticsService.getConsolidatedBalance("EUR", LocalDate.parse("2023-10-27"))`**.
+4.  **`AnalyticsService`** :
+    *   Appelle `accountRepository.findAll()` pour obtenir toutes les entités `AccountEntity`.
+    *   Itère sur chaque `AccountEntity` :
+        *   Récupère `account.getCurrentBalance()` et `account.getCurrency()`.
+        *   Si `account.getCurrency()` est "EUR", le solde est ajouté directement au total.
+        *   Si `account.getCurrency()` est "USD", par exemple :
+            *   Appelle `exchangeRateService.getExchangeRate("USD", "EUR", date)`.
+            *   `ExchangeRateService` (d'un autre module) récupère le taux.
+            *   Le solde en USD est converti en EUR et ajouté au total.
+        *   Les soldes originaux sont accumulés dans la map `balancesInOriginalCurrency`.
+    *   Construit et retourne un `ConsolidatedBalanceDto` avec les résultats.
+5.  **`AnalyticsController`** encapsule le DTO dans une `ResponseEntity` et le retourne au client.
+
+## 4. Points d'Attention et Limitations Actuelles
+
+*   **Implémentations Placeholder :** Les méthodes `getAccountBalanceHistory` et `getCashFlowReport` dans `AnalyticsService` sont actuellement des placeholders. Elles ne contiennent pas la logique de calcul réelle et retournent des données vides ou par défaut. Leur implémentation nécessitera des requêtes de base de données complexes (probablement via JPQL, Criteria API, ou jOOQ si disponible dans le projet) pour agréger les données à partir des transactions (`AccountStatementEntity`) du module `account`.
+*   **Dépendance aux Données Confirmées :** Toute logique d'analytique financière (historique de solde, flux de trésorerie) doit se baser sur des données financières validées et confirmées. Cela signifie que les calculs doivent uniquement prendre en compte les `AccountStatementEntity` ayant un statut `CONFIRMED`.
+*   **Performance :** Les requêtes d'agrégation sur de grands volumes de transactions peuvent être coûteuses en termes de performance. Des stratégies d'optimisation (indexation, requêtes efficaces, potentiellement vues matérialisées ou tables de résumé pré-calculées pour les périodes clôturées) pourraient être nécessaires à l'avenir.
+*   **Gestion des Devises et Taux de Change :** La fonctionnalité de solde consolidé dépend de la disponibilité et de l'exactitude des taux de change fournis par `ExchangeRateService`. La gestion des dates pour les taux de change (ex: taux à la date de transaction vs. taux à la date de rapport) est cruciale.
+
+Cette documentation technique fournit une base pour comprendre le module d'analytique. Des développements futurs seront nécessaires pour implémenter pleinement les fonctionnalités prévues.

@@ -1,0 +1,291 @@
+# Documentation Fonctionnelle - Module d'Importation de Relevés Bancaires
+
+Ce document détaille les fonctionnalités relatives à l'importation et au traitement des relevés bancaires dans le système ERP Banking. Ce module permet d'automatiser l'intégration des transactions bancaires à partir de fichiers fournis par les banques.
+
+## 1. Vue d'Ensemble du Processus d'Importation
+
+Le processus général d'importation de relevés est le suivant :
+1.  **Configuration des Modèles d'Importation :** Un administrateur configure des modèles (templates) qui décrivent la structure des fichiers de relevés pour chaque banque ou format de fichier (ex: CSV, Excel). Chaque modèle spécifie comment extraire les informations pertinentes (date, description, montant, etc.) des fichiers.
+2.  **Téléversement du Fichier de Relevé :** Un utilisateur (typiquement un gestionnaire de données) téléverse un fichier de relevé bancaire via l'interface du système, en sélectionnant le compte bancaire concerné et le modèle d'importation approprié.
+3.  **Parsing et Validation :** Le système utilise le modèle sélectionné pour lire (parser) le fichier, extraire les transactions et les informations d'en-tête. Des validations sont effectuées pour s'assurer de la cohérence des données.
+4.  **Stockage des Transactions :** Les transactions parsées avec succès sont stockées dans le système avec un statut initial (ex: "En attente de révision"). Elles sont alors prêtes à être consultées, révisées et confirmées dans le module de gestion des comptes.
+5.  **Révision et Confirmation :** Les transactions importées sont ensuite révisées et confirmées par un utilisateur habilité (voir documentation du module `account`). La confirmation met à jour le solde du compte bancaire concerné.
+
+## 2. Gestion des Modèles d'Importation
+
+Les modèles d'importation sont essentiels pour permettre au système de comprendre la structure des différents formats de fichiers de relevés.
+
+### 2.1. Créer un Modèle d'Importation
+
+Permet à un administrateur de définir un nouveau modèle pour un format de fichier de relevé spécifique.
+
+*   **Endpoint :** `POST /api/v1/import-templates`
+*   **Rôles requis :** ADMIN
+*   **Corps de la requête :** `ImportTemplateDto`
+
+    | Champ           | Type                                  | Obligatoire | Description                                                                                                                               |
+        |-----------------|---------------------------------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+    | `name`          | String                                | Oui         | Nom unique du modèle (ex: "Relevé CSV Banque X", "Format Excel Banque Y V2").                                                                 |
+    | `bankId`        | UUID                                  | Oui         | ID de la banque à laquelle ce modèle est associé. Peut être nul pour un modèle générique.                                                    |
+    | `sourceType`    | String (Enum: `EXCEL`, `CSV`, `API`, `MANUAL`) | Oui         | Type de source du fichier (ex: `EXCEL` pour les fichiers .xls/.xlsx, `CSV` pour les fichiers .csv).                                   |
+    | `description`   | String                                | Non         | Description textuelle du modèle.                                                                                                          |
+    | `fieldMappings` | List<`TemplateFieldMappingDto`>       | Oui         | Liste des règles de mapping des champs (voir section 2.1.1).                                                                              |
+
+#### 2.1.1. Configuration du Mapping des Champs (`TemplateFieldMappingDto`)
+
+Chaque `TemplateFieldMappingDto` dans la liste `fieldMappings` définit comment extraire une donnée spécifique du fichier.
+
+| Champ             | Type            | Obligatoire | Description                                                                                                                               |
+|-------------------|-----------------|-------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `targetField`     | String          | Oui         | Nom du champ cible dans le système (ex: `transactionDate`, `description`, `debitAmount`, `accountNumber`, `dataStartRow`, `sheetIdentifier`). |
+| `sourceLocation`  | String          | Oui         | Emplacement de la donnée dans le fichier source. Pour Excel: référence de cellule (ex: "A1") ou nom de colonne (ex: "A" pour la colonne A dans les transactions). Pour CSV: nom de la colonne ou index (ex: "0"). |
+| `dataType`        | String          | Non         | Type de donnée attendu (ex: "Date", "Number", "String"). Utilisé pour la conversion.                                                       |
+| `formatPattern`   | String          | Non         | Motif de format pour les dates (ex: "dd/MM/yyyy") ou les nombres (ex: "#,##0.00").                                                           |
+| `defaultValue`    | String          | Non         | Valeur par défaut à utiliser si la donnée est absente ou invalide dans le fichier.                                                          |
+| `processingRules` | Map<String, Object> | Non         | Règles de traitement supplémentaires (ex: remplacer une chaîne par une autre). Format JSON. Exemple : `{"replace": {"old": "Virement", "new": "VIR"}}` |
+| `isHeaderField`   | Boolean         | Non         | `true` si le champ concerne l'en-tête du relevé (ex: numéro de compte, date de début), `false` s'il concerne une ligne de transaction.     |
+| `fieldOrder`      | Integer         | Non         | Ordre du champ, peut être utilisé pour l'affichage ou le traitement.                                                                         |
+
+**Champs Cibles (`targetField`) Reconnus (Exemples) :**
+
+*   **En-tête (`isHeaderField = true`) :**
+    *   `accountNumber` : Numéro de compte du relevé.
+    *   `bankName` : Nom de la banque.
+    *   `statementStartDate` : Date de début du relevé.
+    *   `statementEndDate` : Date de fin du relevé.
+    *   `currency` : Devise du relevé.
+    *   `openingBalance` : Solde d'ouverture.
+    *   `closingBalance` : Solde de clôture.
+    *   `sheetIdentifier` : Nom ou index de la feuille Excel à utiliser (ex: "Feuil1", "0").
+    *   `dataStartRow` : Numéro de la première ligne contenant des transactions (base 1).
+*   **Corps/Transactions (`isHeaderField = false`) :**
+    *   `transactionDate` : Date de l'opération.
+    *   `valueDate` : Date de valeur.
+    *   `description` : Libellé de l'opération.
+    *   `debitAmount` : Montant au débit.
+    *   `creditAmount` : Montant au crédit.
+    *   `reference` : Référence de l'opération.
+    *   `balanceAfter` : Solde après transaction (si disponible).
+
+**Exemple de requête de création de modèle :**
+
+```json
+{
+  "name": "Relevé Excel Banque ABC",
+  "bankId": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11", // ID de la Banque ABC
+  "sourceType": "EXCEL",
+  "description": "Modèle pour les relevés Excel de la Banque ABC (format standard)",
+  "fieldMappings": [
+    // Champs d'en-tête
+    {
+      "targetField": "sheetIdentifier",
+      "sourceLocation": "Transactions", // Nom de la feuille Excel
+      "isHeaderField": true
+    },
+    {
+      "targetField": "accountNumber",
+      "sourceLocation": "B2", // Cellule B2 contient le numéro de compte
+      "isHeaderField": true
+    },
+    {
+      "targetField": "statementStartDate",
+      "sourceLocation": "C5",
+      "dataType": "Date",
+      "formatPattern": "dd/MM/yyyy",
+      "isHeaderField": true
+    },
+    {
+      "targetField": "dataStartRow",
+      "sourceLocation": "8", // Les transactions commencent à la ligne 8
+      "isHeaderField": true
+    },
+    // Champs de transaction (sourceLocation est le nom de la colonne)
+    {
+      "targetField": "transactionDate",
+      "sourceLocation": "A", // Colonne A pour la date d'opération
+      "dataType": "Date",
+      "formatPattern": "dd/MM/yy",
+      "isHeaderField": false
+    },
+    {
+      "targetField": "description",
+      "sourceLocation": "C", // Colonne C pour le libellé
+      "isHeaderField": false
+    },
+    {
+      "targetField": "debitAmount",
+      "sourceLocation": "E", // Colonne E pour les débits
+      "dataType": "Number",
+      "isHeaderField": false
+    },
+    {
+      "targetField": "creditAmount",
+      "sourceLocation": "F", // Colonne F pour les crédits
+      "dataType": "Number",
+      "isHeaderField": false
+    }
+  ]
+}
+```
+
+**Exemple de réponse (Succès - 201 Created) :**
+
+Retourne l'`ImportTemplateDto` créé, avec les ID générés.
+
+```json
+{
+  "id": "f1g2h3i4-j5k6-7890-1234-567890abcdef",
+  "name": "Relevé Excel Banque ABC",
+  "bankId": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+  "bankName": "Banque ABC", // Nom de la banque récupéré
+  "sourceType": "EXCEL",
+  "description": "Modèle pour les relevés Excel de la Banque ABC (format standard)",
+  "createdByUserId": "u1v2w3x4...",
+  "createdByUsername": "admin@example.com",
+  "updatedByUserId": "u1v2w3x4...",
+  "updatedByUsername": "admin@example.com",
+  "createdAt": "2023-10-28T10:00:00Z",
+  "updatedAt": "2023-10-28T10:00:00Z",
+  "fieldMappings": [
+    // ... fieldMappings avec leurs ID générés et templateId renseigné
+    {
+      "id": "m1n2o3p4...",
+      "templateId": "f1g2h3i4-j5k6-7890-1234-567890abcdef",
+      "targetField": "sheetIdentifier",
+      "sourceLocation": "Transactions",
+      "isHeaderField": true
+      // ... autres champs
+    }
+  ]
+}
+```
+
+**Réponses d'erreur possibles :**
+
+*   `400 Bad Request` : Si les données sont invalides (ex: `name` manquant, `bankId` non valide ou banque non trouvée).
+*   `500 Internal Server Error` : Erreur serveur.
+
+### 2.2. Lister les Modèles d'Importation
+
+Permet de récupérer la liste des modèles d'importation existants, potentiellement filtrée par banque.
+
+*   **Endpoint :** `GET /api/v1/import-templates`
+*   **Rôles requis :** ADMIN, DATA_PROCESSOR
+*   **Paramètres de requête optionnels :**
+
+    | Paramètre | Type | Description                                                        |
+        |-----------|------|--------------------------------------------------------------------|
+    | `bankId`  | UUID | ID de la banque pour filtrer les modèles (modèles génériques et ceux de la banque sont retournés). |
+
+**Exemple de réponse (Succès - 200 OK) :**
+
+Liste de `ImportTemplateDto` (format similaire à la réponse de création).
+
+### 2.3. Obtenir un Modèle d'Importation par son ID
+
+Récupère les détails d'un modèle spécifique.
+
+*   **Endpoint :** `GET /api/v1/import-templates/{templateId}`
+*   **Rôles requis :** ADMIN, DATA_PROCESSOR
+*   **Réponse (Succès - 200 OK) :** `ImportTemplateDto`.
+*   **Réponse d'erreur (404 Not Found) :** Si le modèle n'est pas trouvé.
+
+### 2.4. Mettre à Jour un Modèle d'Importation
+
+Modifie un modèle existant.
+
+*   **Endpoint :** `PUT /api/v1/import-templates/{templateId}`
+*   **Rôles requis :** ADMIN
+*   **Corps de la requête :** `ImportTemplateDto` (avec les champs à mettre à jour).
+*   **Réponse (Succès - 200 OK) :** `ImportTemplateDto` mis à jour.
+*   **Réponses d'erreur :** Similaires à la création (400, 404, 500).
+
+### 2.5. Supprimer un Modèle d'Importation
+
+Supprime un modèle.
+
+*   **Endpoint :** `DELETE /api/v1/import-templates/{templateId}`
+*   **Rôles requis :** ADMIN
+*   **Réponse (Succès - 204 No Content)**.
+*   **Réponse d'erreur (404 Not Found) :** Si le modèle n'est pas trouvé.
+
+## 3. Importation d'un Fichier de Relevé
+
+Une fois les modèles configurés, les utilisateurs peuvent importer les fichiers de relevés.
+
+### 3.1. Téléverser un Fichier de Relevé Bancaire
+
+Permet de soumettre un fichier de relevé pour un compte bancaire spécifique, en utilisant un modèle d'importation prédéfini.
+
+*   **Endpoint :** `POST /api/v1/accounts/{accountId}/statements/upload`
+*   **Rôles requis :** ADMIN, DATA_PROCESSOR
+*   **Paramètres de chemin :**
+
+    | Paramètre   | Type | Description                   |
+        |-------------|------|-------------------------------|
+    | `accountId` | UUID | ID du compte bancaire concerné. |
+*   **Paramètres de la requête (form-data) :**
+
+    | Paramètre    | Type          | Obligatoire | Description                                   |
+        |--------------|---------------|-------------|-----------------------------------------------|
+    | `file`       | MultipartFile | Oui         | Le fichier de relevé (ex: .xlsx, .csv).     |
+    | `templateId` | UUID          | Oui         | ID du modèle d'importation à utiliser.        |
+
+**Formats de Fichiers Supportés (basé sur la logique de `StatementProcessingService`) :**
+
+*   **Excel :** Fichiers `.xls` et `.xlsx`. Le service utilise Apache POI pour le parsing.
+*   **CSV :** Bien que `SourceType.CSV` existe, la logique de parsing actuelle dans `StatementProcessingService` est fortement orientée Excel (utilisation de `WorkbookFactory`, `Sheet`, `Row`, `Cell`). Une implémentation spécifique pour CSV serait nécessaire si ce format doit être pleinement supporté.
+
+**Exemple de réponse (Succès - 200 OK) :**
+
+`FileUploadResponseDto`
+
+| Champ                    | Type    | Description                                                                                                 |
+|--------------------------|---------|-------------------------------------------------------------------------------------------------------------|
+| `importJobId`            | UUID    | ID unique généré pour cette tâche d'importation. Peut être utilisé pour suivre l'état (si asynchrone).        |
+| `message`                | String  | Message de statut (ex: "Fichier traité. X transactions prêtes pour révision.").                             |
+| `parsedTransactionCount` | Integer | Nombre de transactions extraites avec succès du fichier.                                                      |
+
+```json
+{
+  "importJobId": "k7l8m9n0-p1q2-3456-7890-abcdef123456",
+  "message": "Fichier traité. 42 transactions prêtes pour révision.",
+  "parsedTransactionCount": 42
+}
+```
+
+**Si des erreurs de parsing mineures surviennent (le fichier est partiellement traité) :**
+
+```json
+{
+  "importJobId": "k7l8m9n0-p1q2-3456-7890-abcdef123456",
+  "message": "Fichier traité. 35 transactions prêtes pour révision. Attention: 2 erreur(s) de parsing mineure(s) rencontrée(s). Les détails sont enregistrés.",
+  "parsedTransactionCount": 35
+}
+```
+Les erreurs mineures sont aussi loguées côté serveur et peuvent être stockées dans `ParsedStatementDataDto.parsingErrors`.
+
+**Réponses d'erreur possibles :**
+
+*   `400 Bad Request` :
+    *   Si le fichier est vide.
+    *   Si le `templateId` ou `accountId` n'est pas valide ou non trouvé.
+    *   Si le modèle ne correspond pas à la banque du compte : `"Le modèle d'importation sélectionné ('<nom_modele>') n'est pas pour la banque de ce compte ('<nom_banque_compte>')."`
+    *   Si le parsing échoue complètement sans trouver de transactions : `"Échec du parsing du fichier, aucune transaction trouvée. Erreurs: <liste_erreurs>"` ou `"Aucune transaction trouvée dans le fichier après parsing."`
+*   `500 Internal Server Error` : En cas d'erreur majeure durant le traitement ou la sauvegarde des données.
+
+## 4. Traitement et Stockage des Données
+
+*   **Parsing (`StatementProcessingService`) :**
+    *   Utilise Apache POI pour lire les fichiers Excel.
+    *   Se base sur les `TemplateFieldMappingEntity` du modèle choisi pour localiser et extraire les données (en-tête et transactions).
+    *   Tente de convertir les données extraites aux types attendus (date, nombre) en utilisant les `formatPattern` si fournis.
+    *   Applique des règles de traitement simples (ex: remplacement de chaînes) si configurées.
+    *   Compile une liste d'erreurs de parsing si des problèmes sont rencontrés (ex: format de date incorrect, cellule non trouvée).
+*   **Stockage (`AccountStatementStorageService`) :**
+    *   Les `ParsedTransactionDto` extraites sont converties en entités `AccountStatementEntity` (du module `account`).
+    *   Chaque `AccountStatementEntity` est initialement marquée avec un statut `PENDING_REVIEW`.
+    *   L'`importJobId` généré est associé à ces relevés.
+    *   La date `lastStatementImportDate` sur l'`AccountEntity` concernée est mise à jour.
+
+Une fois les transactions importées et stockées, elles sont disponibles pour la révision et la confirmation via les fonctionnalités du module `account` (voir `AccountStatementController`). La confirmation de ces transactions impactera le solde du compte bancaire.
