@@ -89,7 +89,7 @@ L'architecture s'articule autour des composants suivants :
 
 #### 2.4.1. `JwtTokenUtil` (`com.cochepa.erp.banking.iam.security.JwtTokenUtil`)
 
-*   **Rôle :** Fournit des méthodes pour générer, valider et extraire des informations des jetons JWT.
+*   **Rôle :** Fournit des méthodes pour générer, valide et extraire des informations des jetons JWT.
 *   **Configuration :**
     *   `jwt.secret` : Clé secrète pour signer les jetons (doit être externalisée et sécurisée en production).
     *   `jwt.expirationMs` : Durée de validité des jetons.

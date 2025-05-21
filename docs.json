@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Cochepa ERP",
   "colors": {
     "primary": "#16A34A",
     "light": "#07C983",
@@ -11,46 +11,82 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Modules ERP",
         "groups": [
           {
-            "group": "Get Started",
+            "group": "Module Bancaire",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              {
+                "group": "Documentation Backend",
+                "pages": [
+                  {
+                    "group": "Gestion des Comptes",
+                    "pages": [
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/Gestion-des-Comptes/fonctionnelle",
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/Gestion-des-Comptes/technique"
+                    ]
+                  },
+                  {
+                    "group": "IAM",
+                    "pages": [
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/IAM/fonctionnelle",
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/IAM/technique"
+                    ]
+                  },
+                  {
+                    "group": "OPCVM",
+                    "pages": [
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/OPCVM/fonctionnelle",
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/OPCVM/technique"
+                    ]
+                  },
+                  {
+                    "group": "Importation des Relevés",
+                    "pages": [
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/Importation-des-Releves/fonctionnelle",
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/Importation-des-Releves/technique"
+                    ]
+                  },
+                  {
+                    "group": "Taux de Change",
+                    "pages": [
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/Taux-de-Change/fonctionnelle",
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/Taux-de-Change/technique"
+                    ]
+                  },
+                  {
+                    "group": "Structure Organisationnelle",
+                    "pages": [
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/Structure-Organisationnelle/fonctionnelle",
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/Structure-Organisationnelle/technique"
+                    ]
+                  },
+                  {
+                    "group": "Analytique",
+                    "pages": [
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/Analytique/fonctionnelle",
+                      "Modules-ERP/Module-Bancaire/Documentation-Backend/Analytique/technique"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Documentation Frontend",
+                "pages": ["Modules-ERP/Module-Bancaire/Documentation-Frontend/index"]
+              },
+              {
+                "group": "Infrastructure & Config",
+                "pages": ["Modules-ERP/Module-Bancaire/Infrastructure-Config/index"]
+              }
             ]
           },
           {
-            "group": "Essentials",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/settings",
-              "essentials/navigation",
-              "essentials/reusable-snippets"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "API Reference",
-        "groups": [
-          {
-            "group": "API Documentation",
-            "pages": [
-              "api-reference/introduction"
-            ]
+            "group": "Module Ventes",
+            "pages": ["Modules-ERP/Module-Ventes/index"]
           },
           {
-            "group": "Endpoint Examples",
-            "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
-            ]
+            "group": "Module Inventaire",
+            "pages": ["Modules-ERP/Module-Inventaire/index"]
           }
         ]
       }
